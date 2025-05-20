@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import JSZip from 'jszip'
 import Papa from 'papaparse'
 import Dashboard from './Dashboard'
+import logoUrl from '/letterboxd-decal-dots-neg-rgb-1.png'
+
 
 export default function App() {
   const [stage, setStage] = useState('upload') // 'upload' | 'loading' | 'dashboard'
@@ -46,13 +48,13 @@ export default function App() {
             exit={{ opacity: 0 }}
           >
             <motion.img
-              src="/letterboxd-decal-dots-neg-rgb-1.png"
-              alt="Logo"
+              src={`${import.meta.env.BASE_URL}letterboxd-decal-dots-neg-rgb-1.png`}
+              alt="Letterboxd Logo"
               className="logo-flicker"
               initial={{ y: -50, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ type: 'spring', stiffness: 100 }}
-            />
+          />
             <h1>Letterboxd Screend</h1>
             <p className="subtext">
               Upload your Letterboxd export (.zip of CSVs) to reveal a cinematic dashboard of your movie journey.
