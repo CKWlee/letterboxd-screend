@@ -1,14 +1,17 @@
+// src/App.jsx
+
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import JSZip from 'jszip'
 import Papa from 'papaparse'
 import Dashboard from './Dashboard'
-import logoUrl from '/letterboxd-decal-dots-neg-rgb-1.png'
 
+// Import the logo from src/assets so Vite resolves it correctly under GH Pages
+import logoUrl from './assets/letterboxd-logo.png'
 
 export default function App() {
   const [stage, setStage] = useState('upload') // 'upload' | 'loading' | 'dashboard'
-  const [data, setData] = useState(null)
+  const [data, setData]   = useState(null)
 
   const handleUpload = async e => {
     const file = e.target.files[0]
@@ -29,7 +32,7 @@ export default function App() {
         })
     )
 
-    // extended delay so the progress bar remains visible
+    // keep the loading bar visible a moment longer
     setTimeout(() => {
       setData(parsed)
       setStage('dashboard')
@@ -47,18 +50,21 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
+            {/* Use the imported logo URL here */}
             <motion.img
-              src={`${import.meta.env.BASE_URL}letterboxd-decal-dots-neg-rgb-1.png`}
+              src={logoUrl}
               alt="Letterboxd Logo"
               className="logo-flicker"
               initial={{ y: -50, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ type: 'spring', stiffness: 100 }}
-          />
+            />
+
             <h1>Letterboxd Screend</h1>
             <p className="subtext">
               Upload your Letterboxd export (.zip of CSVs) to reveal a cinematic dashboard of your movie journey.
             </p>
+
             <input
               id="file"
               type="file"
