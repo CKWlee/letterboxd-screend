@@ -1,4 +1,4 @@
-/* src/index.css — “La La Land” Cinematic Modular Grid & Centered Upload */
+/* src/index.css — Modular Grid with Auto-Height Tiles */
 
 /* 1) IMPORT FONTS */
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@300;400&display=swap');
@@ -12,7 +12,6 @@
   --accent-lavender: #C5A3FF;
   --accent-sky: #A1C4FD;
   --shadow-soft: 0 4px 12px rgba(0,0,0,0.1);
-  --row-height: 150px;
 }
 
 /* 3) RESET */
@@ -22,7 +21,7 @@
   box-sizing: border-box;
 }
 
-/* 4) FULL-SCREEN LAYOUT */
+/* 4) FULL-SCREEN & BACKGROUND */
 html, body, #root, .App {
   height: 100%;
   width: 100%;
@@ -38,19 +37,20 @@ body::before {
   content: '';
   position: fixed;
   inset: 0;
-  background: url('/film-grain.png') repeat;
+  background: url('film-grain.png') repeat;
   opacity: 0.02;
   pointer-events: none;
   z-index: 1;
 }
 
-/* 5) APP CONTAINER */
+/* 5) APP LAYOUT */
 .App {
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
-/* 6) UPLOAD & LOADING SCREENS — PERFECT MIDDLE CENTER */
+/* 6) CENTERED SCREENS */
 .upload-screen,
 .loading-screen {
   position: absolute;
@@ -65,7 +65,7 @@ body::before {
   padding: 0 1rem;
 }
 
-/* 7) LOGO */
+/* 7) LOGO ANIMATION */
 .logo-flicker {
   width: 120px;
   height: auto;
@@ -122,7 +122,7 @@ p, label, .subtext {
   100% { width: 0%; }
 }
 
-/* 11) GRID & TILES (for dashboard) */
+/* 11) GRID & TILES (Auto-Height) */
 .dashboard {
   flex: 1;
   width: 100%;
@@ -131,24 +131,28 @@ p, label, .subtext {
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  grid-auto-rows: var(--row-height);
+  grid-auto-rows: auto;      /* rows grow to fit their content */
   grid-auto-flow: dense;
   gap: 1.5rem;
   padding: 2rem;
 }
-.tile--small { grid-column: span 1; grid-row: span 1; }
-.tile--wide  { grid-column: span 2; grid-row: span 1; }
-.tile--tall  { grid-column: span 1; grid-row: span 2; }
-.tile--large { grid-column: span 2; grid-row: span 2; }
-.dashboard-card,
-.card {
+/* only width spans; height is driven by content */
+/* tweak min-heights to suit your charts */
+.tile--small { grid-column: span 1; min-height: 120px; }
+.tile--wide  { grid-column: span 2; min-height: 200px; }
+.tile--tall  { grid-column: span 1; min-height: 300px; }
+.tile--large { grid-column: span 2; min-height: 350px; }
+
+.dashboard-card {
   background: var(--card-bg);
   border-radius: 12px;
   box-shadow: var(--shadow-soft);
   padding: 1rem;
   display: flex;
   flex-direction: column;
+  justify-content: flex-start;
 }
+
 
 /* 12) FLICKER ANIMATION */
 @keyframes neonFlicker {
