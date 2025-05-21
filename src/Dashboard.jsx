@@ -25,14 +25,11 @@ export default function Dashboard({ parsedData }) {
   const likesKey    = Object.keys(parsedData).find(k => /likes[\\/_]films$/i.test(k));
   const likedFilms  = likesKey ? parsedData[likesKey] : [];
 
-  // Dynamic field detection
+  // Dynamic field detection for diary entries
   const diaryKeys   = diaryData[0]   ? Object.keys(diaryData[0])   : [];
   const filmKey     = diaryKeys.find(k => /film|movie/i.test(k))    || diaryKeys[0] || 'Name';
   const dateKey     = diaryKeys.find(k => /watched.*date/i.test(k)) || diaryKeys.find(k => /date/i.test(k)) || 'Watched Date';
   const rewatchKey  = diaryKeys.find(k => /rewatch/i.test(k));
-
-  const ratingKeys  = ratingsData[0] ? Object.keys(ratingsData[0]) : [];
-  const ratingKey   = ratingKeys.find(k => /rating/i.test(k))       || 'Rating';
 
   // Core stats
   const totalWatched = watchedData.length;
@@ -47,10 +44,10 @@ export default function Dashboard({ parsedData }) {
 
   const lovedCount    = likedFilms.length;
 
-  const validRatings  = ratingsData.filter(r => r[ratingKey]);
+  const validRatings  = ratingsData.filter(r => r[Object.keys(r).find(k => /rating/i.test(k))]);
   const totalRated    = validRatings.length;
   const averageRating = totalRated
-    ? validRatings.reduce((sum, r) => sum + parseFloat(r[ratingKey]), 0) / totalRated
+    ? validRatings.reduce((sum, r) => sum + parseFloat(r[Object.keys(r).find(k => /rating/i.test(k))]), 0) / totalRated
     : 0;
 
   const reviewsWritten = reviewsData.length;
@@ -84,6 +81,7 @@ export default function Dashboard({ parsedData }) {
   })();
 
   // Average Monthly Rating (diaryData)
+  const ratingKey = Object.keys(diaryData[0] || {}).find(k => /rating/i.test(k));
   const monthlyRatings = (() => {
     const sums = {}, cnt = {};
     diaryData.forEach(m => {
@@ -104,7 +102,7 @@ export default function Dashboard({ parsedData }) {
   const ratingDistribution = (() => {
     const dist = {};
     validRatings.forEach(r => {
-      const n = parseFloat(r[ratingKey]);
+      const n = parseFloat(r[Object.keys(r).find(k => /rating/i.test(k))]);
       if (!isNaN(n)) {
         const key = n.toFixed(1);
         dist[key] = (dist[key] || 0) + 1;
@@ -115,30 +113,39 @@ export default function Dashboard({ parsedData }) {
       .map(([rating, count]) => ({ rating, count }));
   })();
 
-  // Top Countries & Top Years (no API)
-  const topCountries = Object.entries(
-    watchedData.reduce((map, m) => {
-      const country = m['Release Country'] || m.Country || 'Unknown';
-      map[country] = (map[country] || 0) + 1;
-      return map;
-    }, {})
-  )
-    .sort(([,a], [,b]) => b - a)
-    .slice(0, 10)
-    .map(([name, count]) => ({ name, count }));
+  // ===== Dynamic Top Countries & Top Years =====
+  const watchedKeys = watchedData[0] ? Object.keys(watchedData[0]) : [];
+  const countryKey  = watchedKeys.find(k => /country/i.test(k));
+  const yearKey     = watchedKeys.find(k => /^year$/i.test(k) || /release.*year/i.test(k));
 
-  const topYears = Object.entries(
-    watchedData.reduce((map, m) => {
-      const year = String(
-        m['Release Year'] || new Date(m.Date || m[dateKey]).getFullYear()
-      );
-      map[year] = (map[year] || 0) + 1;
-      return map;
-    }, {})
-  )
-    .sort(([,a], [,b]) => b - a)
-    .slice(0, 10)
-    .map(([name, count]) => ({ name, count }));
+  const topCountries = countryKey
+    ? Object.entries(
+        watchedData.reduce((map, m) => {
+          const country = m[countryKey];
+          if (country) map[country] = (map[country] || 0) + 1;
+          return map;
+        }, {})
+      )
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 10)
+        .map(([name, count]) => ({ name, count }))
+    : [];
+
+  const topYears = yearKey
+    ? Object.entries(
+        watchedData.reduce((map, m) => {
+          const yearVal = m[yearKey];
+          if (yearVal) {
+            const year = String(yearVal);
+            map[year] = (map[year] || 0) + 1;
+          }
+          return map;
+        }, {})
+      )
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 10)
+        .map(([name, count]) => ({ name, count }))
+    : [];
 
   // Tick intervals (~6 labels max)
   const barInterval  = monthlyActivity.length > 6 ? Math.floor(monthlyActivity.length / 6) : 0;
@@ -171,6 +178,7 @@ export default function Dashboard({ parsedData }) {
 
         {/* Charts */}
         <div className="charts-grid">
+          {/* Monthly Activity */}
           <div className="chart-card">
             <h2>Monthly Activity</h2>
             <ResponsiveContainer width="100%" height={280}>
@@ -189,11 +197,12 @@ export default function Dashboard({ parsedData }) {
                 />
                 <YAxis />
                 <Tooltip />
-                <Bar dataKey="count" fill={COLORS[0]} />  
+                <Bar dataKey="count" fill={COLORS[0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
 
+          {/* Avg Monthly Rating */}
           <div className="chart-card">
             <h2>Avg Monthly Rating</h2>
             <ResponsiveContainer width="100%" height={280}>
@@ -210,13 +219,14 @@ export default function Dashboard({ parsedData }) {
                   angle={-45}
                   textAnchor="end"
                 />
-                <YAxis domain={[0,5]} />
+                <YAxis domain={[0, 5]} />
                 <Tooltip formatter={value => value.toFixed(2)} />
                 <Line type="monotone" dataKey="rating" stroke={COLORS[1]} />
               </LineChart>
             </ResponsiveContainer>
           </div>
 
+          {/* Rating Distribution */}
           <div className="chart-card">
             <h2>Rating Distribution</h2>
             <ResponsiveContainer width="100%" height={280}>
