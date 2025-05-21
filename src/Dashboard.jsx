@@ -39,19 +39,11 @@ const CINEMATIC_TERMS = [
   'pacing','rhythm','flow','continuity','cut','transition','montage'
 ];
 
-// Chart color palette for bar/line
-const COLORS = [
-  '#0088FE', '#00C49F', '#FFBB28', '#FF8042',
-  '#8884d8', '#82ca9d', '#ffc658'
-];
+// Chart color palettes
+const COLORS = ['#0088FE','#00C49F','#FFBB28','#FF8042','#8884d8','#82ca9d','#ffc658'];
+const PIE_COLORS = ['#3366CC','#DC3912','#FF9900','#109618','#990099','#3B3EAC','#0099C6','#DD4477','#66AA00'];
 
-// Distinct colors for each rating slice (1.0★–5.0★ step .5)
-const PIE_COLORS = [
-  '#3366CC', '#DC3912', '#FF9900', '#109618',
-  '#990099', '#3B3EAC', '#0099C6', '#DD4477', '#66AA00'
-];
-
-// WordCloudD3: renders a centered word cloud with horizontal labels
+// WordCloudD3 component
 function WordCloudD3({ data, width, height }) {
   const [words, setWords] = useState([]);
 
@@ -101,54 +93,68 @@ function WordCloudD3({ data, width, height }) {
 }
 
 export default function Dashboard({ parsedData }) {
-  // normalize CSV keys
+  // Check for required CSVs
+  const required = ['diary','watched','ratings','reviews'];
+  const provided = Object.keys(parsedData).map(k => k.toLowerCase());
+  const missing  = required.filter(k => !provided.includes(k));
+
+  if (missing.length) {
+    return (
+      <div className="no-data-warning">
+        <h2>Oops—wrong upload!</h2>
+        <p>Please include CSVs for: {missing.join(', ')}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="upload-button"
+        >
+          Re-upload Files
+        </button>
+      </div>
+    );
+  }
+
+  // Normalize and extract data
   const csvMap = {};
   Object.entries(parsedData).forEach(([k,v]) => {
     csvMap[k.toLowerCase()] = v;
   });
-
-  const diary     = csvMap['diary']   || [];
-  const watched   = csvMap['watched'] || [];
-  const ratings   = csvMap['ratings'] || [];
-  const reviews   = csvMap['reviews'] || [];
-  const likesKey  = Object.keys(parsedData).find(k=>/likes[\\/_]films$/i.test(k));
+  const diary     = csvMap['diary'];
+  const watched   = csvMap['watched'];
+  const ratings   = csvMap['ratings'];
+  const reviews   = csvMap['reviews'];
+  const likesKey  = Object.keys(parsedData).find(k => /likes[\\/_]films$/i.test(k));
   const favorites = likesKey ? parsedData[likesKey] : [];
 
-  // detect diary columns
-  const diaryKeys  = diary[0] ? Object.keys(diary[0]) : [];
-  const filmKey    = diaryKeys.find(k=>/film|movie/i.test(k))    || diaryKeys[0] || 'Name';
-  const dateKey    = diaryKeys.find(k=>/watched.*date/i.test(k)) || diaryKeys.find(k=>/date/i.test(k)) || 'Watched Date';
+  // Detect columns
+  const diaryKeys  = Object.keys(diary[0]);
+  const filmKey    = diaryKeys.find(k=>/film|movie/i.test(k)) || diaryKeys[0];
+  const dateKey    = diaryKeys.find(k=>/watched.*date/i.test(k)) || diaryKeys.find(k=>/date/i.test(k));
   const rewatchKey = diaryKeys.find(k=>/rewatch/i.test(k));
 
-  // core stats
+  // Core stats
   const totalWatched   = watched.length;
   const rewatchedCount = rewatchKey
-    ? new Set(diary.filter(d=>d[rewatchKey]?.toLowerCase()==='yes')
-                     .map(d=>d[filmKey])).size
+    ? new Set(diary.filter(d=>d[rewatchKey]?.toLowerCase()==='yes').map(d=>d[filmKey])).size
     : 0;
   const lovedCount     = favorites.length;
 
-  // ratings
-  const ratingField   = Object.keys(ratings[0]||{}).find(k=>/rating/i.test(k));
-  const validRatings  = ratings.filter(r=>r[ratingField]);
-  const totalRated    = validRatings.length;
-  const averageRating = totalRated
+  // Ratings & reviews
+  const ratingField    = Object.keys(ratings[0]).find(k=>/rating/i.test(k));
+  const validRatings   = ratings.filter(r=>r[ratingField]);
+  const totalRated     = validRatings.length;
+  const averageRating  = totalRated
     ? validRatings.reduce((s,r)=>s+parseFloat(r[ratingField]),0)/totalRated
     : 0;
   const reviewsWritten = reviews.length;
 
-  // date range
+  // Date range
   const sorted = [...diary]
     .filter(d=>d[dateKey])
     .sort((a,b)=>new Date(a[dateKey]) - new Date(b[dateKey]));
-  const firstWatch = sorted[0]
-    ? new Date(sorted[0][dateKey]).toLocaleDateString()
-    : 'N/A';
-  const lastWatch = sorted.length
-    ? new Date(sorted[sorted.length-1][dateKey]).toLocaleDateString()
-    : 'N/A';
+  const firstWatch = new Date(sorted[0][dateKey]).toLocaleDateString();
+  const lastWatch  = new Date(sorted[sorted.length-1][dateKey]).toLocaleDateString();
 
-  // monthly activity
+  // Monthly activity
   const monthlyActivity = useMemo(() => {
     const counts = {};
     watched.forEach(m => {
@@ -163,7 +169,7 @@ export default function Dashboard({ parsedData }) {
       .map(([month,count])=>({ month, count }));
   }, [watched]);
 
-  // average monthly rating
+  // Monthly ratings
   const monthlyRatings = useMemo(()=>{
     const sums={}, cnt={};
     diary.forEach(d=>{
@@ -181,38 +187,33 @@ export default function Dashboard({ parsedData }) {
       .map(lbl=>({ label: lbl, rating: sums[lbl]/cnt[lbl] }));
   }, [diary]);
 
-  // rating distribution
+  // Rating distribution
   const ratingDistribution = useMemo(()=>{
     const dist={};
     validRatings.forEach(r=>{
       const n = parseFloat(r[ratingField]);
-      if (!isNaN(n)) {
-        const key = n.toFixed(1);
-        dist[key] = (dist[key]||0) + 1;
-      }
+      const key = n.toFixed(1);
+      dist[key] = (dist[key]||0) + 1;
     });
     return Object.entries(dist)
       .sort((a,b)=>parseFloat(a[0]) - parseFloat(b[0]))
       .map(([rating,count])=>({ rating, count }));
   }, [validRatings]);
 
-  // films watched by year (all years, decades on x-axis)
-  const yearKey = Object.keys(watched[0]||{}).find(k=>/^year$/i.test(k)||/release.*year/i.test(k));
-  const yearsData = useMemo(() => {
-    if (!yearKey) return [];
+  // Films by year
+  const yearKey = Object.keys(watched[0]).find(k=>/^year$/i.test(k)||/release.*year/i.test(k));
+  const yearsData = useMemo(()=>{
     const counts = watched.reduce((m,mv)=>{
       const y = parseInt(mv[yearKey],10);
       if (!isNaN(y)) m[y] = (m[y]||0) + 1;
       return m;
     }, {});
     const yrs = Object.keys(counts).map(y=>parseInt(y,10));
-    if (!yrs.length) return [];
     const minY = Math.min(...yrs), maxY = Math.max(...yrs);
-    const data = [];
-    for (let y=minY; y<=maxY; y++) {
-      data.push({ name: String(y), count: counts[y] || 0 });
-    }
-    return data;
+    return Array.from({length:maxY-minY+1},(_,i)=>({
+      name: String(minY+i),
+      count: counts[minY+i]||0
+    }));
   }, [watched, yearKey]);
 
   return (
@@ -227,11 +228,11 @@ export default function Dashboard({ parsedData }) {
         <div className="stats-grid">
           {[
             ['Total Watched', totalWatched],
-            ['Rewatched Movies', rewatchedCount],
-            ['Loved Movies', lovedCount],
-            ['Movies Rated', totalRated],
-            ['Reviews Written', reviewsWritten],
-            ['Avg Rating', `${totalRated ? averageRating.toFixed(2) : '0.00'} ★`]
+            ['Rewatched',    rewatchedCount],
+            ['Loved',        lovedCount],
+            ['Rated',        totalRated],
+            ['Reviews',      reviewsWritten],
+            ['Avg ★',        averageRating.toFixed(2)]
           ].map(([label,value])=>(
             <div className="stat-card" key={label}>
               <h3>{label}</h3>
@@ -242,7 +243,6 @@ export default function Dashboard({ parsedData }) {
 
         {/* Charts */}
         <div className="charts-grid">
-          {/* Monthly Activity */}
           <div className="chart-card">
             <h2>Monthly Activity</h2>
             <ResponsiveContainer width="100%" height={280}>
@@ -254,16 +254,15 @@ export default function Dashboard({ parsedData }) {
                     return `${m} '${y.slice(-2)}`;
                   }}
                   interval={Math.floor(monthlyActivity.length/6)}
-                  tick={{fontSize:12}} height={45} angle={-45} textAnchor="end"
+                  tick={{fontSize:12}}
+                  height={45} angle={-45} textAnchor="end"
                 />
-                <YAxis />
-                <Tooltip />
+                <YAxis /><Tooltip/>
                 <Bar dataKey="count" fill={COLORS[0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
 
-          {/* Avg Monthly Rating */}
           <div className="chart-card">
             <h2>Avg Monthly Rating</h2>
             <ResponsiveContainer width="100%" height={280}>
@@ -277,14 +276,12 @@ export default function Dashboard({ parsedData }) {
                   interval={Math.floor(monthlyRatings.length/6)}
                   tick={{fontSize:12}} height={45} angle={-45} textAnchor="end"
                 />
-                <YAxis domain={[0,5]} />
-                <Tooltip formatter={v=>v.toFixed(2)} />
+                <YAxis domain={[0,5]}/><Tooltip/>
                 <Line type="monotone" dataKey="rating" stroke={COLORS[1]} />
               </LineChart>
             </ResponsiveContainer>
           </div>
 
-          {/* Rating Distribution */}
           <div className="chart-card">
             <h2>Rating Distribution</h2>
             <ResponsiveContainer width="100%" height={280}>
@@ -293,8 +290,7 @@ export default function Dashboard({ parsedData }) {
                   data={ratingDistribution}
                   dataKey="count"
                   nameKey="rating"
-                  cx="50%"
-                  cy="50%"
+                  cx="50%" cy="50%"
                   outerRadius={80}
                   paddingAngle={0}
                   label={false}
@@ -305,11 +301,8 @@ export default function Dashboard({ parsedData }) {
                 </Pie>
                 <Tooltip formatter={(v,n)=>[v,`${n}★`]} />
                 <Legend
-                  layout="horizontal"
-                  align="center"
-                  verticalAlign="bottom"
-                  iconSize={12}
-                  formatter={v=>`${v}★`}
+                  layout="horizontal" align="center" verticalAlign="bottom"
+                  iconSize={12} formatter={v=>`${v}★`}
                   wrapperStyle={{paddingTop:10}}
                 />
               </PieChart>
@@ -324,7 +317,7 @@ export default function Dashboard({ parsedData }) {
             <WordCloudD3
               data={(() => {
                 const commentKey = diaryKeys.find(k=>/comment|entry|notes|text/i.test(k));
-                const reviewKey  = Object.keys(reviews[0]||{}).find(k=>/review|text/i.test(k));
+                const reviewKey  = Object.keys(reviews[0]).find(k=>/review|text/i.test(k));
                 const texts = [
                   ...diary.map(d=>d[commentKey]||''),
                   ...reviews.map(r=>r[reviewKey]||'')
@@ -344,8 +337,7 @@ export default function Dashboard({ parsedData }) {
                 }
                 return data;
               })()}
-              width={400}
-              height={220}
+              width={400} height={220}
             />
             <div style={{
               textAlign:'center',
@@ -364,13 +356,12 @@ export default function Dashboard({ parsedData }) {
               <BarChart data={yearsData}>
                 <XAxis
                   dataKey="name"
-                  tickFormatter={year => (parseInt(year,10) % 10 === 0 ? year : '')}
-                  interval={0}
-                  tick={{fontSize:12}}
+                  tickFormatter={year=> (parseInt(year,10)%10===0 ? year : '')}
+                  interval={0} tick={{fontSize:12}}
                 />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Bar dataKey="count" fill={COLORS[2]} />
+                <YAxis allowDecimals={false}/>
+                <Tooltip/>
+                <Bar dataKey="count" fill={COLORS[2]}/>
               </BarChart>
             </ResponsiveContainer>
           </div>
