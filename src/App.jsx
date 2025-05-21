@@ -1,100 +1,93 @@
-// src/App.jsx
+import React, { useState } from 'react';
+import JSZip from 'jszip';
+import Papa from 'papaparse';
+import Dashboard from './dashboard';
+import logo from './assets/letterboxd-logo.png';
+import './App.css';
 
-import React, { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import JSZip from 'jszip'
-import Papa from 'papaparse'
-import Dashboard from './Dashboard'
+function App() {
+  const [stage, setStage] = useState('upload');      // 'upload', 'loading', 'dashboard'
+  const [parsedData, setParsedData] = useState(null);
+  const [progress, setProgress] = useState(0);
 
-// Import the logo from src/assets so Vite resolves it correctly under GH Pages
-import logoUrl from './assets/letterboxd-logo.png'
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !file.name.endsWith('.zip')) {
+      alert('Please upload a valid Letterboxd ZIP export file.');
+      return;
+    }
 
-export default function App() {
-  const [stage, setStage] = useState('upload') // 'upload' | 'loading' | 'dashboard'
-  const [data, setData]   = useState(null)
+    setStage('loading');
+    try {
+      const zip = await JSZip.loadAsync(file);
+      const csvFiles = Object.keys(zip.files).filter((name) => name.endsWith('.csv'));
+      const total = csvFiles.length;
+      let count = 0;
+      const results = {};
 
-  const handleUpload = async e => {
-    const file = e.target.files[0]
-    if (!file) return
-    setStage('loading')
-
-    const zip = await JSZip.loadAsync(file)
-    const parsed = {}
-    await Promise.all(
-      Object.keys(zip.files)
-        .filter(fn => fn.endsWith('.csv'))
-        .map(async fn => {
-          const text = await zip.files[fn].async('string')
-          parsed[fn.replace('.csv', '')] = Papa.parse(text, {
+      for (const filename of csvFiles) {
+        const content = await zip.files[filename].async('string');
+        await new Promise((resolve) => {
+          Papa.parse(content, {
             header: true,
-            skipEmptyLines: true
-          }).data
-        })
-    )
+            complete: (res) => {
+              const key = filename.replace('.csv', '');
+              results[key] = res.data;
+              count += 1;
+              setProgress(Math.round((count / total) * 100));
+              resolve();
+            },
+          });
+        });
+      }
 
-    // keep the loading bar visible a moment longer
-    setTimeout(() => {
-      setData(parsed)
-      setStage('dashboard')
-    }, 2000)
-  }
+      setParsedData(results);
+      setStage('dashboard');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to parse ZIP file. Please try again.');
+      setStage('upload');
+    }
+  };
 
   return (
-    <div className="App">
-      <AnimatePresence exitBeforeEnter>
-        {stage === 'upload' && (
-          <motion.div
-            className="upload-screen"
-            key="upload"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            {/* Use the imported logo URL here */}
-            <motion.img
-              src={logoUrl}
-              alt="Letterboxd Logo"
-              className="logo-flicker"
-              initial={{ y: -50, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ type: 'spring', stiffness: 100 }}
+    <div className="app-container">
+      {stage === 'upload' && (
+        <div className="upload-container">
+          <img src={logo} alt="Letterboxd Screend Logo" className="logo" />
+          <h1>Letterboxd Screend</h1>
+          <p>Upload your Letterboxd ZIP export to get your Wrapped summary.</p>
+          <input
+            type="file"
+            id="file-input"
+            accept=".zip"
+            onChange={handleFileChange}
+          />
+          <label htmlFor="file-input" className="upload-button">
+            Upload ZIP
+          </label>
+        </div>
+      )}
+
+      {stage === 'loading' && (
+        <div className="loading-container">
+          <div className="spinner" />
+          <p>Parsing your data…</p>
+          <div className="progress-bar-container">
+            <div
+              className="progress-bar"
+              style={{ width: `${progress}%` }}
             />
+          </div>
+          <p className="progress-text">{progress}%</p>
+        </div>
+      )}
 
-            <h1>Letterboxd Screend</h1>
-            <p className="subtext">
-              Upload your Letterboxd export (.zip of CSVs) to reveal a cinematic dashboard of your movie journey.
-            </p>
-
-            <input
-              id="file"
-              type="file"
-              accept=".zip"
-              onChange={handleUpload}
-              style={{ display: 'none' }}
-            />
-            <label htmlFor="file" className="UploadBtn">
-              Select File
-            </label>
-          </motion.div>
-        )}
-
-        {stage === 'loading' && (
-          <motion.div
-            className="loading-screen"
-            key="loading"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <div className="progress-container">
-              <div className="progress-bar" />
-            </div>
-            <p className="subtext">Parsing your cinematic history…</p>
-          </motion.div>
-        )}
-
-        {stage === 'dashboard' && <Dashboard key="dashboard" data={data} />}
-      </AnimatePresence>
+      {stage === 'dashboard' && parsedData && (
+        <Dashboard parsedData={parsedData} />
+      )}
     </div>
-  )
+  );
 }
+
+export default App;

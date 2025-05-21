@@ -1,194 +1,276 @@
 // src/Dashboard.jsx
 
-import React, { useState } from 'react'
+import React from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  LineChart, Line, CartesianGrid,
-  PieChart, Pie, Cell, Legend, Sector
-} from 'recharts'
+  PieChart, Pie, Cell, LineChart, Line, Legend
+} from 'recharts';
 
-export default function Dashboard({ data }) {
-  const watched    = data.watched        || []
-  const ratings    = data.ratings        || []
-  const diary      = data.diary          || []
-  const likedFilms = data['likes/films'] || []
-  const reviews    = data.reviews        || []
+const COLORS = [
+  '#0088FE', '#00C49F', '#FFBB28', '#FF8042',
+  '#8884d8', '#82ca9d', '#ffc658'
+];
 
-  // months labels
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+export default function Dashboard({ parsedData }) {
+  // Normalize CSV keys
+  const csvMap = {};
+  Object.entries(parsedData).forEach(([key, val]) => {
+    csvMap[key.toLowerCase()] = val;
+  });
 
-  // simple metrics
-  const totalEntries   = watched.length
-  const totalRatings   = ratings.length
-  const totalReviews   = reviews.length
-  const totalFavorites = likedFilms.length
-  const rewatchCount   = diary.filter(d => ['Yes','TRUE',true].includes(d.Rewatch || d.rewatch)).length
-  const avgRating = (
-    ratings.reduce((sum,r)=>(sum + Number(r.Rating)||0),0) /
-    (ratings.length||1)
-  ).toFixed(1)
+  const diaryData   = csvMap['diary']   || [];
+  const watchedData = csvMap['watched'] || [];
+  const ratingsData = csvMap['ratings'] || [];
+  const reviewsData = csvMap['reviews'] || [];
+  const likesKey    = Object.keys(parsedData).find(k => /likes[\\/_]films$/i.test(k));
+  const likedFilms  = likesKey ? parsedData[likesKey] : [];
 
-  // first/last watch
-  const dates = watched.map(w=>new Date(w.Date)).filter(d=>!isNaN(d))
-  const firstWatch = dates.length
-    ? new Date(Math.min(...dates)).toLocaleDateString()
-    : '—'
-  const lastWatch = dates.length
-    ? new Date(Math.max(...dates)).toLocaleDateString()
-    : '—'
+  // Dynamic field detection
+  const diaryKeys   = diaryData[0]   ? Object.keys(diaryData[0])   : [];
+  const filmKey     = diaryKeys.find(k => /film|movie/i.test(k))    || diaryKeys[0] || 'Name';
+  const dateKey     = diaryKeys.find(k => /watched.*date/i.test(k)) || diaryKeys.find(k => /date/i.test(k)) || 'Watched Date';
+  const rewatchKey  = diaryKeys.find(k => /rewatch/i.test(k));
 
-  // 1) monthly activity bar
-  const monthlyActivity = months.map((m,i)=>({
-    month: m,
-    count: watched.filter(w=> {
-      const d=new Date(w.Date)
-      return !isNaN(d)&&d.getMonth()===i
-    }).length
-  }))
+  const ratingKeys  = ratingsData[0] ? Object.keys(ratingsData[0]) : [];
+  const ratingKey   = ratingKeys.find(k => /rating/i.test(k))       || 'Rating';
 
-  // 2) rating distribution pie
-  const starBuckets = {}
-  ratings.forEach(r=>{
-    const v=parseFloat(r.Rating)
-    if(!isNaN(v)) starBuckets[v]=(starBuckets[v]||0)+1
-  })
-  const pieData = Object.keys(starBuckets)
-    .map(k=>({ name:k, value:starBuckets[k] }))
-    .sort((a,b)=>parseFloat(a.name)-parseFloat(b.name))
-  const COLORS = ['#C5A3FF','#A1C4FD','#6B5B95','#FF9AA2','#FFB7B2','#FFDAC1','#E2F0CB','#B5EAD7']
+  // Core stats
+  const totalWatched = watchedData.length;
 
-  // 3) rating trend line
-  const monthlyAvg = months.map((m,i)=> {
-    const vals = ratings
-      .map((r,j)=>({ d:new Date(r.Date), v:Number(r.Rating)||0 }))
-      .filter(x=>!isNaN(x.d)&& x.d.getMonth()===i)
-      .map(x=>x.v)
-    const avg = vals.length
-      ? vals.reduce((a,b)=>a+b,0)/vals.length
-      : 0
-    return { month:m, avg:Number(avg.toFixed(1)) }
-  })
+  const rewatchedCount = rewatchKey
+    ? new Set(
+        diaryData
+          .filter(m => m[rewatchKey] && String(m[rewatchKey]).toLowerCase() === 'yes')
+          .map(m => m[filmKey])
+      ).size
+    : 0;
 
-  // pie hover expansion
-  const [activeI,setActiveI] = useState(null)
-  const renderActive = props => {
-    const { cx,cy,innerRadius,outerRadius,startAngle,endAngle,fill } = props
-    return (
-      <Sector
-        cx={cx} cy={cy}
-        innerRadius={innerRadius}
-        outerRadius={outerRadius+10}
-        startAngle={startAngle}
-        endAngle={endAngle}
-        fill={fill}
-      />
-    )
-  }
+  const lovedCount    = likedFilms.length;
+
+  const validRatings  = ratingsData.filter(r => r[ratingKey]);
+  const totalRated    = validRatings.length;
+  const averageRating = totalRated
+    ? validRatings.reduce((sum, r) => sum + parseFloat(r[ratingKey]), 0) / totalRated
+    : 0;
+
+  const reviewsWritten = reviewsData.length;
+
+  // Date range
+  const sortedByDate = [...diaryData]
+    .filter(m => m[dateKey])
+    .sort((a, b) => new Date(a[dateKey]) - new Date(b[dateKey]));
+
+  const firstWatchDate = sortedByDate[0]
+    ? new Date(sortedByDate[0][dateKey]).toLocaleDateString()
+    : 'N/A';
+  const lastWatchDate = sortedByDate.length
+    ? new Date(sortedByDate[sortedByDate.length - 1][dateKey]).toLocaleDateString()
+    : 'N/A';
+
+  // Monthly Activity (watchedData)
+  const monthlyActivity = (() => {
+    const counts = {};
+    watchedData.forEach(m => {
+      const dateValue = m[dateKey] || m.Date;
+      const d = new Date(dateValue);
+      if (!isNaN(d)) {
+        const label = d.toLocaleString('default', { month: 'short', year: 'numeric' });
+        counts[label] = (counts[label] || 0) + 1;
+      }
+    });
+    return Object.entries(counts)
+      .sort((a, b) => new Date(a[0]) - new Date(b[0]))
+      .map(([month, count]) => ({ month, count }));
+  })();
+
+  // Average Monthly Rating (diaryData)
+  const monthlyRatings = (() => {
+    const sums = {}, cnt = {};
+    diaryData.forEach(m => {
+      const d = new Date(m[dateKey]);
+      const r = parseFloat(m[ratingKey]);
+      if (!isNaN(d) && !isNaN(r)) {
+        const label = d.toLocaleString('default', { month: 'short', year: 'numeric' });
+        sums[label] = (sums[label] || 0) + r;
+        cnt[label]  = (cnt[label]  || 0) + 1;
+      }
+    });
+    return Object.keys(sums)
+      .sort((a, b) => new Date(a) - new Date(b))
+      .map(label => ({ label, rating: sums[label] / cnt[label] }));
+  })();
+
+  // Rating Distribution (½-star increments)
+  const ratingDistribution = (() => {
+    const dist = {};
+    validRatings.forEach(r => {
+      const n = parseFloat(r[ratingKey]);
+      if (!isNaN(n)) {
+        const key = n.toFixed(1);
+        dist[key] = (dist[key] || 0) + 1;
+      }
+    });
+    return Object.entries(dist)
+      .sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]))
+      .map(([rating, count]) => ({ rating, count }));
+  })();
+
+  // Top Countries & Top Years (no API)
+  const topCountries = Object.entries(
+    watchedData.reduce((map, m) => {
+      const country = m['Release Country'] || m.Country || 'Unknown';
+      map[country] = (map[country] || 0) + 1;
+      return map;
+    }, {})
+  )
+    .sort(([,a], [,b]) => b - a)
+    .slice(0, 10)
+    .map(([name, count]) => ({ name, count }));
+
+  const topYears = Object.entries(
+    watchedData.reduce((map, m) => {
+      const year = String(
+        m['Release Year'] || new Date(m.Date || m[dateKey]).getFullYear()
+      );
+      map[year] = (map[year] || 0) + 1;
+      return map;
+    }, {})
+  )
+    .sort(([,a], [,b]) => b - a)
+    .slice(0, 10)
+    .map(([name, count]) => ({ name, count }));
+
+  // Tick intervals (~6 labels max)
+  const barInterval  = monthlyActivity.length > 6 ? Math.floor(monthlyActivity.length / 6) : 0;
+  const lineInterval = monthlyRatings.length  > 6 ? Math.floor(monthlyRatings.length  / 6) : 0;
 
   return (
     <div className="dashboard">
-      <h2 style={{ margin: '1rem 2rem' }}>Your Cinematic Wrapped</h2>
-      <div className="grid">
+      <div className="dashboard-header">
+        <h1>Cinematic Highlights</h1>
+        <p>Your personalized Screend Wrapped summary</p>
+      </div>
 
-        {/* small metrics */}
-        <div className="dashboard-card tile--small">
-          <h3>Total Entries</h3>
-          <p>{totalEntries}</p>
-        </div>
-        <div className="dashboard-card tile--small">
-          <h3>Rewatches</h3>
-          <p>{rewatchCount}</p>
-        </div>
-
-        {/* monthly activity bar spans 2 cols */}
-        <div className="dashboard-card tile--wide">
-          <h3>Monthly Activity</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={monthlyActivity} margin={{ top:20,right:30,left:0,bottom:0 }}>
-              <XAxis dataKey="month" stroke="#555" />
-              <YAxis allowDecimals={false} stroke="#555" />
-              <Tooltip />
-              <Bar dataKey="count" fill={COLORS[0]} radius={[4,4,0,0]} />
-            </BarChart>
-          </ResponsiveContainer>
+      <div className="dashboard-content">
+        {/* Stats */}
+        <div className="stats-grid">
+          {[
+            ['Total Watched',    totalWatched],
+            ['Rewatched Movies', rewatchedCount],
+            ['Loved Movies',     lovedCount],
+            ['Movies Rated',     totalRated],
+            ['Reviews Written',  reviewsWritten],
+            ['Avg Rating',       `${totalRated ? averageRating.toFixed(2) : '0.00'} ★`]
+          ].map(([label, value]) => (
+            <div className="stat-card" key={label}>
+              <h3>{label}</h3>
+              <p className="stat-value">{value}</p>
+            </div>
+          ))}
         </div>
 
-        {/* more small metrics */}
-        <div className="dashboard-card tile--small">
-          <h3>Total Ratings</h3>
-          <p>{totalRatings}</p>
-        </div>
-        <div className="dashboard-card tile--small">
-          <h3>Average Rating</h3>
-          <p>{avgRating}</p>
-        </div>
-        <div className="dashboard-card tile--small">
-          <h3>Total Reviews</h3>
-          <p>{totalReviews}</p>
+        {/* Charts */}
+        <div className="charts-grid">
+          <div className="chart-card">
+            <h2>Monthly Activity</h2>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={monthlyActivity}>
+                <XAxis
+                  dataKey="month"
+                  tickFormatter={str => {
+                    const [m, y] = str.split(' ');
+                    return `${m} '${y.slice(-2)}`;
+                  }}
+                  interval={barInterval}
+                  tick={{ fontSize: 12 }}
+                  height={45}
+                  angle={-45}
+                  textAnchor="end"
+                />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="count" fill={COLORS[0]} />  
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="chart-card">
+            <h2>Avg Monthly Rating</h2>
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart data={monthlyRatings}>
+                <XAxis
+                  dataKey="label"
+                  tickFormatter={str => {
+                    const [m, y] = str.split(' ');
+                    return `${m} '${y.slice(-2)}`;
+                  }}
+                  interval={lineInterval}
+                  tick={{ fontSize: 12 }}
+                  height={45}
+                  angle={-45}
+                  textAnchor="end"
+                />
+                <YAxis domain={[0,5]} />
+                <Tooltip formatter={value => value.toFixed(2)} />
+                <Line type="monotone" dataKey="rating" stroke={COLORS[1]} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="chart-card">
+            <h2>Rating Distribution</h2>
+            <ResponsiveContainer width="100%" height={280}>
+              <PieChart>
+                <Pie
+                  data={ratingDistribution}
+                  dataKey="count"
+                  nameKey="rating"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  paddingAngle={3}
+                  label={false}
+                >
+                  {ratingDistribution.map((_, idx) => (
+                    <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(val, name) => [val, `${name}★`]} />
+                <Legend verticalAlign="bottom" formatter={v => `${v}★`} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
-        {/* pie chart spans 2 cols */}
-        <div className="dashboard-card tile--wide">
-          <h3>Rating Distribution</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <PieChart>
-              <Pie
-                data={pieData}
-                dataKey="value"
-                nameKey="name"
-                innerRadius={50}
-                outerRadius={70}
-                activeIndex={activeI}
-                activeShape={renderActive}
-                onMouseEnter={(_,i)=>setActiveI(i)}
-                onMouseLeave={()=>setActiveI(null)}
-                labelLine={false}
-              >
-                {pieData.map((_,i)=>(
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+        {/* Top Countries & Top Years */}
+        <div className="lists-grid">
+          {[
+            ['Top Countries', topCountries],
+            ['Top Years',     topYears]
+          ].map(([title, list]) => (
+            <div className="list-card" key={title}>
+              <h2>{title}</h2>
+              <ol>
+                {list.map(item => (
+                  <li key={item.name}>{item.name} ({item.count})</li>
                 ))}
-              </Pie>
-              <Legend
-                layout="vertical"
-                verticalAlign="middle"
-                align="right"
-                formatter={v=>`${v}★`}
-                wrapperStyle={{ paddingLeft:20 }}
-              />
-              <Tooltip formatter={v=>`${v} films`} />
-            </PieChart>
-          </ResponsiveContainer>
+              </ol>
+            </div>
+          ))}
         </div>
 
-        {/* remaining small */}
-        <div className="dashboard-card tile--small">
-          <h3>Total Favorites</h3>
-          <p>{totalFavorites}</p>
-        </div>
-        <div className="dashboard-card tile--small">
-          <h3>First Watch</h3>
-          <p>{firstWatch}</p>
-        </div>
-
-        {/* rating trend line spans 2 cols */}
-        <div className="dashboard-card tile--wide">
-          <h3>Rating Trend</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={monthlyAvg} margin={{ top:20,right:30,left:0,bottom:0 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" stroke="#555" />
-              <YAxis domain={[0,5]} stroke="#555" />
-              <Tooltip />
-              <Line type="monotone" dataKey="avg" stroke={COLORS[2]} dot={{ r:4 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="dashboard-card tile--small">
-          <h3>Last Watch</h3>
-          <p>{lastWatch}</p>
+        {/* Date Range */}
+        <div className="date-info">
+          <div className="first-watch">
+            <h3>First Watch</h3>
+            <p>{firstWatchDate}</p>
+          </div>
+          <div className="last-watch">
+            <h3>Latest Watch</h3>
+            <p>{lastWatchDate}</p>
+          </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
