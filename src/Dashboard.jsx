@@ -7,6 +7,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, Legend
 } from 'recharts';
+import GenreDistribution from './GenreDistribution';
 
 // Trimmed list: core cinematic roles & popular amateur review terms
 const CINEMATIC_TERMS = [
@@ -276,7 +277,13 @@ export default function Dashboard({ parsedData }) {
                   interval={Math.floor(monthlyRatings.length/6)}
                   tick={{fontSize:12}} height={45} angle={-45} textAnchor="end"
                 />
-                <YAxis domain={[0,5]}/><Tooltip/>
+                <YAxis
+                  domain={[0, 5]}
+                  tickFormatter={(val) => val.toFixed(2)}
+                />
+                <Tooltip
+                  formatter={(val) => val.toFixed(2)}
+                />
                 <Line type="monotone" dataKey="rating" stroke={COLORS[1]} />
               </LineChart>
             </ResponsiveContainer>
@@ -307,6 +314,18 @@ export default function Dashboard({ parsedData }) {
                 />
               </PieChart>
             </ResponsiveContainer>
+          </div>
+        </div>
+        
+        {/* Date Range */}
+        <div className="date-info">
+          <div className="first-watch">
+            <h3>First Watch</h3>
+            <p>{firstWatch}</p>
+          </div>
+          <div className="last-watch">
+            <h3>Latest Watch</h3>
+            <p>{lastWatch}</p>
           </div>
         </div>
 
@@ -366,18 +385,11 @@ export default function Dashboard({ parsedData }) {
             </ResponsiveContainer>
           </div>
         </div>
-
-        {/* Date Range */}
-        <div className="date-info">
-          <div className="first-watch">
-            <h3>First Watch</h3>
-            <p>{firstWatch}</p>
-          </div>
-          <div className="last-watch">
-            <h3>Latest Watch</h3>
-            <p>{lastWatch}</p>
-          </div>
-        </div>
+        {/* ——————————————————————————————————————————————— */}
+        {/* FULL-WIDTH GENRE DISTRIBUTION ROW */}
+        <div className="charts-grid">
+          <GenreDistribution watched={watched} />
+        </div>        
       </div>
     </div>
   );

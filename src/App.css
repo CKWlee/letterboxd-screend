@@ -224,6 +224,7 @@ h1 {
   flex: 1;
   min-width: 200px;
   padding: 1rem;
+  margin-bottom: 2rem;
 }
 
 .date-info h3 {
