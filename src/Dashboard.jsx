@@ -1,5 +1,4 @@
 // src/Dashboard.jsx
-
 import React, { useState, useEffect, useMemo } from 'react';
 import cloud from 'd3-cloud';
 import { scaleLinear } from 'd3-scale';
@@ -7,7 +6,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, Legend
 } from 'recharts';
-import GenreDistribution from './GenreDistribution';
+import SentimentTile from './SentimentTile';
 
 // Trimmed list: core cinematic roles & popular amateur review terms
 const CINEMATIC_TERMS = [
@@ -67,7 +66,7 @@ function WordCloudD3({ data, width, height }) {
 
   const colorScale = scaleLinear()
     .domain([min, max])
-    .range(['#D1C4E9', '#5E35B1']); // light lavender → deep purple
+    .range(['#D1C4E9', '#5E35B1']);
 
   return (
     <svg width={width} height={height} style={{ display:'block', margin:'0 auto' }}>
@@ -127,7 +126,7 @@ export default function Dashboard({ parsedData }) {
   const favorites = likesKey ? parsedData[likesKey] : [];
 
   // Detect columns
-  const diaryKeys  = Object.keys(diary[0]);
+  const diaryKeys  = Object.keys(diary[0] || {});
   const filmKey    = diaryKeys.find(k=>/film|movie/i.test(k)) || diaryKeys[0];
   const dateKey    = diaryKeys.find(k=>/watched.*date/i.test(k)) || diaryKeys.find(k=>/date/i.test(k));
   const rewatchKey = diaryKeys.find(k=>/rewatch/i.test(k));
@@ -140,7 +139,7 @@ export default function Dashboard({ parsedData }) {
   const lovedCount     = favorites.length;
 
   // Ratings & reviews
-  const ratingField    = Object.keys(ratings[0]).find(k=>/rating/i.test(k));
+  const ratingField    = Object.keys(ratings[0] || {}).find(k=>/rating/i.test(k));
   const validRatings   = ratings.filter(r=>r[ratingField]);
   const totalRated     = validRatings.length;
   const averageRating  = totalRated
@@ -148,12 +147,14 @@ export default function Dashboard({ parsedData }) {
     : 0;
   const reviewsWritten = reviews.length;
 
-  // Date range
+  // Date range + first/last movie
   const sorted = [...diary]
     .filter(d=>d[dateKey])
     .sort((a,b)=>new Date(a[dateKey]) - new Date(b[dateKey]));
-  const firstWatch = new Date(sorted[0][dateKey]).toLocaleDateString();
-  const lastWatch  = new Date(sorted[sorted.length-1][dateKey]).toLocaleDateString();
+  const firstWatch = sorted.length ? new Date(sorted[0][dateKey]).toLocaleDateString() : '';
+  const lastWatch  = sorted.length ? new Date(sorted[sorted.length-1][dateKey]).toLocaleDateString() : '';
+  const firstMovie = sorted.length ? sorted[0][filmKey] : '';
+  const lastMovie  = sorted.length ? sorted[sorted.length-1][filmKey] : '';
 
   // Monthly activity
   const monthlyActivity = useMemo(() => {
@@ -168,14 +169,14 @@ export default function Dashboard({ parsedData }) {
     return Object.entries(counts)
       .sort((a,b)=>new Date(a[0]) - new Date(b[0]))
       .map(([month,count])=>({ month, count }));
-  }, [watched]);
+  }, [watched, dateKey]);
 
   // Monthly ratings
   const monthlyRatings = useMemo(()=>{
     const sums={}, cnt={};
     diary.forEach(d=>{
       const dt = new Date(d[dateKey]);
-      const rk = Object.keys(d).find(k=>/rating/i.test(k));
+      const rk = Object.keys(d||{}).find(k=>/rating/i.test(k));
       const rv = parseFloat(d[rk]);
       if (!isNaN(dt) && !isNaN(rv)) {
         const lbl = dt.toLocaleString('default',{month:'short',year:'numeric'});
@@ -186,7 +187,7 @@ export default function Dashboard({ parsedData }) {
     return Object.keys(sums)
       .sort((a,b)=>new Date(a)-new Date(b))
       .map(lbl=>({ label: lbl, rating: sums[lbl]/cnt[lbl] }));
-  }, [diary]);
+  }, [diary, dateKey]);
 
   // Rating distribution
   const ratingDistribution = useMemo(()=>{
@@ -202,7 +203,7 @@ export default function Dashboard({ parsedData }) {
   }, [validRatings]);
 
   // Films by year
-  const yearKey = Object.keys(watched[0]).find(k=>/^year$/i.test(k)||/release.*year/i.test(k));
+  const yearKey = Object.keys(watched[0] || {}).find(k=>/^year$/i.test(k)||/release.*year/i.test(k));
   const yearsData = useMemo(()=>{
     const counts = watched.reduce((m,mv)=>{
       const y = parseInt(mv[yearKey],10);
@@ -210,7 +211,8 @@ export default function Dashboard({ parsedData }) {
       return m;
     }, {});
     const yrs = Object.keys(counts).map(y=>parseInt(y,10));
-    const minY = Math.min(...yrs), maxY = Math.max(...yrs);
+    const minY = yrs.length ? Math.min(...yrs) : 0;
+    const maxY = yrs.length ? Math.max(...yrs) : 0;
     return Array.from({length:maxY-minY+1},(_,i)=>({
       name: String(minY+i),
       count: counts[minY+i]||0
@@ -225,7 +227,7 @@ export default function Dashboard({ parsedData }) {
       </div>
 
       <div className="dashboard-content">
-        {/* Stats */}
+        {/* Stats Grid */}
         <div className="stats-grid">
           {[
             ['Total Watched', totalWatched],
@@ -242,90 +244,76 @@ export default function Dashboard({ parsedData }) {
           ))}
         </div>
 
-        {/* Charts */}
+        {/* Charts Grid */}
         <div className="charts-grid">
+          {/* Monthly Activity */}
           <div className="chart-card">
             <h2>Monthly Activity</h2>
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={monthlyActivity}>
-                <XAxis
-                  dataKey="month"
-                  tickFormatter={str=>{
+                <XAxis dataKey="month" tickFormatter={str=>{
                     const [m,y]=str.split(' ');
                     return `${m} '${y.slice(-2)}`;
                   }}
                   interval={Math.floor(monthlyActivity.length/6)}
-                  tick={{fontSize:12}}
-                  height={45} angle={-45} textAnchor="end"
-                />
-                <YAxis /><Tooltip/>
+                  tick={{fontSize:12}} height={45} angle={-45} textAnchor="end"/>
+                <YAxis /><Tooltip />
                 <Bar dataKey="count" fill={COLORS[0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
 
+          {/* Avg Monthly Rating */}
           <div className="chart-card">
             <h2>Avg Monthly Rating</h2>
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={monthlyRatings}>
-                <XAxis
-                  dataKey="label"
-                  tickFormatter={str=>{
+                <XAxis dataKey="label" tickFormatter={str=>{
                     const [m,y]=str.split(' ');
                     return `${m} '${y.slice(-2)}`;
                   }}
                   interval={Math.floor(monthlyRatings.length/6)}
-                  tick={{fontSize:12}} height={45} angle={-45} textAnchor="end"
-                />
-                <YAxis
-                  domain={[0, 5]}
-                  tickFormatter={(val) => val.toFixed(2)}
-                />
-                <Tooltip
-                  formatter={(val) => val.toFixed(2)}
-                />
-                <Line type="monotone" dataKey="rating" stroke={COLORS[1]} />
+                  tick={{fontSize:12}} height={45} angle={-45} textAnchor="end"/>
+                <YAxis domain={[0,5]} tickFormatter={val=>val.toFixed(2)}/>
+                <Tooltip formatter={val=>val.toFixed(2)}/>
+                <Line type="monotone" dataKey="rating" stroke={COLORS[1]}/>                
               </LineChart>
             </ResponsiveContainer>
           </div>
 
+          {/* Rating Distribution */}
           <div className="chart-card">
             <h2>Rating Distribution</h2>
             <ResponsiveContainer width="100%" height={280}>
               <PieChart>
-                <Pie
-                  data={ratingDistribution}
-                  dataKey="count"
-                  nameKey="rating"
-                  cx="50%" cy="50%"
-                  outerRadius={80}
-                  paddingAngle={0}
-                  label={false}
-                >
+                <Pie data={ratingDistribution} dataKey="count" nameKey="rating"
+                     cx="50%" cy="50%" outerRadius={80} paddingAngle={0} label={false}>
                   {ratingDistribution.map((_,i)=>(
                     <Cell key={i} fill={PIE_COLORS[i]} stroke="none" />
                   ))}
                 </Pie>
-                <Tooltip formatter={(v,n)=>[v,`${n}★`]} />
-                <Legend
-                  layout="horizontal" align="center" verticalAlign="bottom"
-                  iconSize={12} formatter={v=>`${v}★`}
-                  wrapperStyle={{paddingTop:10}}
-                />
+                <Tooltip formatter={(v,n)=>[v,`${n}★`]}/>
+                <Legend layout="horizontal" align="center" verticalAlign="bottom"
+                        iconSize={12} formatter={v=>`${v}★`} wrapperStyle={{paddingTop:10}}/>
               </PieChart>
             </ResponsiveContainer>
           </div>
+
+          {/* Sentiment Tile */}
+          <SentimentTile diary={diary} reviews={reviews} />
         </div>
-        
+
         {/* Date Range */}
         <div className="date-info">
-          <div className="first-watch">
+          <div>
             <h3>First Watch</h3>
             <p>{firstWatch}</p>
+            <p style={{ fontSize: '0.9rem', color: '#333', marginTop: '4px' }}>{firstMovie}</p>
           </div>
-          <div className="last-watch">
+          <div>
             <h3>Latest Watch</h3>
             <p>{lastWatch}</p>
+            <p style={{ fontSize: '0.9rem', color: '#333', marginTop: '4px' }}>{lastMovie}</p>
           </div>
         </div>
 
@@ -336,7 +324,7 @@ export default function Dashboard({ parsedData }) {
             <WordCloudD3
               data={(() => {
                 const commentKey = diaryKeys.find(k=>/comment|entry|notes|text/i.test(k));
-                const reviewKey  = Object.keys(reviews[0]).find(k=>/review|text/i.test(k));
+                const reviewKey  = Object.keys(reviews[0] || {}).find(k=>/review|text/i.test(k));
                 const texts = [
                   ...diary.map(d=>d[commentKey]||''),
                   ...reviews.map(r=>r[reviewKey]||'')
@@ -358,13 +346,7 @@ export default function Dashboard({ parsedData }) {
               })()}
               width={400} height={220}
             />
-            <div style={{
-              textAlign:'center',
-              marginTop:'8px',
-              fontStyle:'italic',
-              fontSize:'0.9rem',
-              color:'#5E35B1'
-            }}>
+            <div style={{ textAlign:'center', marginTop:'8px', fontStyle:'italic', fontSize:'0.9rem', color:'#5E35B1' }}>
               • Font size & color darkness ∝ term frequency
             </div>
           </div>
@@ -373,11 +355,7 @@ export default function Dashboard({ parsedData }) {
             <h2>Films Watched by Year</h2>
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={yearsData}>
-                <XAxis
-                  dataKey="name"
-                  tickFormatter={year=> (parseInt(year,10)%10===0 ? year : '')}
-                  interval={0} tick={{fontSize:12}}
-                />
+                <XAxis dataKey="name" tickFormatter={year=> (parseInt(year,10)%10===0 ? year : '')} interval={0} tick={{fontSize:12}} />
                 <YAxis allowDecimals={false}/>
                 <Tooltip/>
                 <Bar dataKey="count" fill={COLORS[2]}/>
@@ -385,11 +363,6 @@ export default function Dashboard({ parsedData }) {
             </ResponsiveContainer>
           </div>
         </div>
-        {/* ——————————————————————————————————————————————— */}
-        {/* FULL-WIDTH GENRE DISTRIBUTION ROW */}
-        <div className="charts-grid">
-          <GenreDistribution watched={watched} />
-        </div>        
       </div>
     </div>
   );
