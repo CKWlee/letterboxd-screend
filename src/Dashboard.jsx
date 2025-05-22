@@ -7,6 +7,11 @@ import {
   PieChart, Pie, Cell, LineChart, Line, Legend
 } from 'recharts';
 import SentimentTile from './SentimentTile';
+// ── Parse “YYYY-MM-DD” as a local date (no off-by-one) ──
+const parseYMD = s => {
+  const [y, m, d] = String(s).split('-').map(n => parseInt(n, 10));
+  return new Date(y, m - 1, d);
+};
 
 // Trimmed list: core cinematic roles & popular amateur review terms
 const CINEMATIC_TERMS = [
@@ -127,7 +132,24 @@ export default function Dashboard({ parsedData }) {
 
   // Detect columns
   const diaryKeys  = Object.keys(diary[0] || {});
-  const filmKey    = diaryKeys.find(k=>/film|movie/i.test(k)) || diaryKeys[0];
+  let filmKey = diaryKeys.find(k => /film|movie|title|name/i.test(k));
+    // 2) Fallback: first column whose first cell isn’t a date or pure number
+  if (!filmKey) {
+    filmKey = diaryKeys.find(k => {
+      const cell = diary[0][k];
+      return (
+        cell &&
+        isNaN(Date.parse(cell)) &&
+        isNaN(Number(cell))
+      );
+    });
+  }
+
+  // 3) Final fallback: just pick something that isn’t your date column
+  if (!filmKey) {
+    filmKey = diaryKeys.find(k => k !== dateKey) || diaryKeys[0];
+  }
+
   const dateKey    = diaryKeys.find(k=>/watched.*date/i.test(k)) || diaryKeys.find(k=>/date/i.test(k));
   const rewatchKey = diaryKeys.find(k=>/rewatch/i.test(k));
 
@@ -150,24 +172,31 @@ export default function Dashboard({ parsedData }) {
   // Date range + first/last movie
   const sorted = [...diary]
     .filter(d=>d[dateKey])
-    .sort((a,b)=>new Date(a[dateKey]) - new Date(b[dateKey]));
-  const firstWatch = sorted.length ? new Date(sorted[0][dateKey]).toLocaleDateString() : '';
-  const lastWatch  = sorted.length ? new Date(sorted[sorted.length-1][dateKey]).toLocaleDateString() : '';
+    .sort((a,b)=>parseYMD(a[dateKey]) - parseYMD(b[dateKey]));
+  const firstWatch = sorted.length ? parseYMD(sorted[0][dateKey]).toLocaleDateString() : '';
+  const lastWatch  = sorted.length ? parseYMD(sorted[sorted.length-1][dateKey]).toLocaleDateString() : '';
   const firstMovie = sorted.length ? sorted[0][filmKey] : '';
   const lastMovie  = sorted.length ? sorted[sorted.length-1][filmKey] : '';
+
 
   // Monthly activity
   const monthlyActivity = useMemo(() => {
     const counts = {};
     watched.forEach(m => {
-      const dt = new Date(m[dateKey]||m.Date);
+      const dt = m[dateKey]
+      ? parseYMD(m[dateKey])
+      : new Date(m.Date);
       if (!isNaN(dt)) {
         const lbl = dt.toLocaleString('default',{month:'short',year:'numeric'});
         counts[lbl] = (counts[lbl]||0) + 1;
       }
     });
     return Object.entries(counts)
-      .sort((a,b)=>new Date(a[0]) - new Date(b[0]))
+      .sort((a,b)=>{
+        const [mA,yA] = a[0].split(' ');
+        const [mB,yB] = b[0].split(' ');
+        return new Date(`${mA} 1, ${yA}`) - new Date(`${mB} 1, ${yB}`);
+        })
       .map(([month,count])=>({ month, count }));
   }, [watched, dateKey]);
 
@@ -175,7 +204,7 @@ export default function Dashboard({ parsedData }) {
   const monthlyRatings = useMemo(()=>{
     const sums={}, cnt={};
     diary.forEach(d=>{
-      const dt = new Date(d[dateKey]);
+      const dt = parseYMD(d[dateKey]);
       const rk = Object.keys(d||{}).find(k=>/rating/i.test(k));
       const rv = parseFloat(d[rk]);
       if (!isNaN(dt) && !isNaN(rv)) {
@@ -185,7 +214,7 @@ export default function Dashboard({ parsedData }) {
       }
     });
     return Object.keys(sums)
-      .sort((a,b)=>new Date(a)-new Date(b))
+      .sort((a,b)=>parseYMD(a)-parseYMD(b))
       .map(lbl=>({ label: lbl, rating: sums[lbl]/cnt[lbl] }));
   }, [diary, dateKey]);
 
@@ -306,14 +335,12 @@ export default function Dashboard({ parsedData }) {
         {/* Date Range */}
         <div className="date-info">
           <div>
-            <h3>First Watch</h3>
-            <p>{firstWatch}</p>
-            <p style={{ fontSize: '0.9rem', color: '#333', marginTop: '4px' }}>{firstMovie}</p>
+            <h3>First Watched</h3>
+            <p>{`${firstWatch} — ${firstMovie}`}</p>
           </div>
           <div>
-            <h3>Latest Watch</h3>
-            <p>{lastWatch}</p>
-            <p style={{ fontSize: '0.9rem', color: '#333', marginTop: '4px' }}>{lastMovie}</p>
+            <h3>Latest Watched</h3>
+            <p>{`${lastWatch} — ${lastMovie}`}</p>
           </div>
         </div>
 
