@@ -7,6 +7,7 @@ import {
   PieChart, Pie, Cell, LineChart, Line, Legend
 } from 'recharts';
 import SentimentTile from './SentimentTile';
+import HeatmapTile from './HeatmapTile';
 // ── Parse “YYYY-MM-DD” as a local date (no off-by-one) ──
 const parseYMD = s => {
   const [y, m, d] = String(s).split('-').map(n => parseInt(n, 10));
@@ -152,6 +153,11 @@ export default function Dashboard({ parsedData }) {
 
   const dateKey    = diaryKeys.find(k=>/watched.*date/i.test(k)) || diaryKeys.find(k=>/date/i.test(k));
   const rewatchKey = diaryKeys.find(k=>/rewatch/i.test(k));
+  const watchedDateKey = Object.keys(watched[0] || {})
+  .find(k => /date/i.test(k));
+  const watchedDates = watched
+  .map(row => row[watchedDateKey])
+  .filter(Boolean); 
 
   // Core stats
   const totalWatched   = watched.length;
@@ -389,6 +395,9 @@ export default function Dashboard({ parsedData }) {
               </BarChart>
             </ResponsiveContainer>
           </div>
+        </div>
+        <div className="chart-card">
+          <HeatmapTile watchedDates={watchedDates} />
         </div>
       </div>
     </div>

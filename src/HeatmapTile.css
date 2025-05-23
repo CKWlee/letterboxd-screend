@@ -1,0 +1,57 @@
+/* HeatmapTile.css */
+
+.heatmap-tile {
+  text-align: center;
+  padding: 1rem;
+}
+
+.heatmap-legend {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  margin: 0 0.75rem;
+}
+
+.legend-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  margin-right: 4px;
+  display: inline-block;
+}
+
+/* ─── SVG Heatmap Squares ───────────────────────────────────────── */
+
+/* empty days */
+rect.color-empty    { fill: #eee; }
+
+/* 1 watch */
+rect.color-scale-1  { fill: #d6e685; }
+
+/* 2–3 watches */
+rect.color-scale-2  { fill: #8cc665; }
+
+/* 4–5 watches */
+rect.color-scale-3  { fill: #44a340; }
+
+/* 6+ watches */
+rect.color-scale-4  { fill: #1e6823; }
+
+/* ─── Legend Swatches ───────────────────────────────────────────── */
+
+.legend-color.color-empty    { background-color: #eee; }
+.legend-color.color-scale-1  { background-color: #d6e685; }
+.legend-color.color-scale-2  { background-color: #8cc665; }
+.legend-color.color-scale-3  { background-color: #44a340; }
+.legend-color.color-scale-4  { background-color: #1e6823; }
+
+.legend-label {
+  font-size: 0.8rem;
+  color: #555;
+}
