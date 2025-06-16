@@ -1,4 +1,3 @@
-// src/Dashboard.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import cloud from 'd3-cloud';
 import { scaleLinear } from 'd3-scale';
@@ -8,41 +7,47 @@ import {
 } from 'recharts';
 import SentimentTile from './SentimentTile';
 import HeatmapTile from './HeatmapTile';
+import FavoritesTile from './FavoritesTile';
+import LoggingLagTile from './LoggingLagTile';
+
 // ── Parse “YYYY-MM-DD” as a local date (no off-by-one) ──
 const parseYMD = s => {
-  const [y, m, d] = String(s).split('-').map(n => parseInt(n, 10));
+  if (!s || typeof s !== 'string') return null;
+  const parts = String(s).split('-').map(n => parseInt(n, 10));
+  if (parts.length !== 3 || parts.some(isNaN)) return null;
+  const [y, m, d] = parts;
   return new Date(y, m - 1, d);
 };
 
 // Trimmed list: core cinematic roles & popular amateur review terms
 const CINEMATIC_TERMS = [
-  'story','characters','plot','dialogue','scene','tone',
-  'camera','cinematography','director','acting','performance','cast',
-  'visuals','music','soundtrack','score','script','emotional',
-  'powerful','beautiful','moving','captivating','riveting','heartfelt',
-  'masterpiece','brilliant','amazing','fantastic','incredible','outstanding',
-  'excellent','narrative','eccentric','weird','quirky','unique',
-  'original','refreshing','engaging','focus','chemistry','audience',
-  'screen','different','experience','impressive','intense','thrilling',
-  'suspenseful','gripping','entertaining','funny','humor','comedy',
-  'drama','action','thriller','animation','fantasy','horror',
-  'romance','adventure','sci-fi','documentary','biography','historical',
-  'musical','mystery','crime','family','sports','war','western',
-  'superhero','comic','adaptation','comedic','sequel','prequel',
-  'remake','reboot','franchise','series','trilogy','quadrilogy',
-  'cinematic universe','blockbuster','indie','cult','classic','underrated',
-  'overrated','hilarious','binge-worthy','must-watch','cinema','film',
-  'movie','flick','picture','show','favorite','recommend','watchlist',
-  'rewatch','revisit','nostalgia','timeless','evergreen','iconic',
-  'love','actor','actress','character','role','casting','ensemble',
-  'dynamic','relationship','development','arc','journey','growth',
-  'transformation','redemption','conflict','resolution','theme','message',
-  'moral','lesson','symbolism','metaphor','allegory','subtext','motif',
-  'imagery','visual','aesthetic','style','mood','atmosphere','setting',
-  'location','world-building','universe','mythology','lore','backstory',
-  'history','context','subculture','sequence','shot','angle','framing',
-  'composition','lighting','color','contrast','depth','movement','editing',
-  'pacing','rhythm','flow','continuity','cut','transition','montage'
+    'story','characters','plot','dialogue','scene','tone',
+    'camera','cinematography','director','acting','performance','cast',
+    'visuals','music','soundtrack','score','script','emotional',
+    'powerful','beautiful','moving','captivating','riveting','heartfelt',
+    'masterpiece','brilliant','amazing','fantastic','incredible','outstanding',
+    'excellent','narrative','eccentric','weird','quirky','unique',
+    'original','refreshing','engaging','focus','chemistry','audience',
+    'screen','different','experience','impressive','intense','thrilling',
+    'suspenseful','gripping','entertaining','funny','humor','comedy',
+    'drama','action','thriller','animation','fantasy','horror',
+    'romance','adventure','sci-fi','documentary','biography','historical',
+    'musical','mystery','crime','family','sports','war','western',
+    'superhero','comic','adaptation','comedic','sequel','prequel',
+    'remake','reboot','franchise','series','trilogy','quadrilogy',
+    'cinematic universe','blockbuster','indie','cult','classic','underrated',
+    'overrated','hilarious','binge-worthy','must-watch','cinema','film',
+    'movie','flick','picture','show','favorite','recommend','watchlist',
+    'rewatch','revisit','nostalgia','timeless','evergreen','iconic',
+    'love','actor','actress','character','role','casting','ensemble',
+    'dynamic','relationship','development','arc','journey','growth',
+    'transformation','redemption','conflict','resolution','theme','message',
+    'moral','lesson','symbolism','metaphor','allegory','subtext','motif',
+    'imagery','visual','aesthetic','style','mood','atmosphere','setting',
+    'location','world-building','universe','mythology','lore','backstory',
+    'history','context','subculture','sequence','shot','angle','framing',
+    'composition','lighting','color','contrast','depth','movement','editing',
+    'pacing','rhythm','flow','continuity','cut','transition','montage'
 ];
 
 // Chart color palettes
@@ -66,6 +71,7 @@ function WordCloudD3({ data, width, height }) {
   }, [data, width, height]);
 
   const [min, max] = useMemo(() => {
+    if (!data || data.length === 0) return [0, 0];
     const vals = data.map(d => d.value);
     return [Math.min(...vals), Math.max(...vals)];
   }, [data]);
@@ -124,20 +130,19 @@ export default function Dashboard({ parsedData }) {
   Object.entries(parsedData).forEach(([k,v]) => {
     csvMap[k.toLowerCase()] = v;
   });
-  const diary     = csvMap['diary'];
-  const watched   = csvMap['watched'];
-  const ratings   = csvMap['ratings'];
-  const reviews   = csvMap['reviews'];
+  const diary     = csvMap['diary'] || [];
+  const watched   = csvMap['watched'] || [];
+  const ratings   = csvMap['ratings'] || [];
+  const reviews   = csvMap['reviews'] || [];
   const likesKey  = Object.keys(parsedData).find(k => /likes[\\/_]films$/i.test(k));
   const favorites = likesKey ? parsedData[likesKey] : [];
 
   // Detect columns
   const diaryKeys  = Object.keys(diary[0] || {});
   let filmKey = diaryKeys.find(k => /film|movie|title|name/i.test(k));
-    // 2) Fallback: first column whose first cell isn’t a date or pure number
   if (!filmKey) {
     filmKey = diaryKeys.find(k => {
-      const cell = diary[0][k];
+      const cell = diary[0]?.[k];
       return (
         cell &&
         isNaN(Date.parse(cell)) &&
@@ -145,19 +150,18 @@ export default function Dashboard({ parsedData }) {
       );
     });
   }
-
-  // 3) Final fallback: just pick something that isn’t your date column
+  
+  const dateKey    = diaryKeys.find(k=>/watched.*date/i.test(k)) || diaryKeys.find(k=>/date/i.test(k));
   if (!filmKey) {
     filmKey = diaryKeys.find(k => k !== dateKey) || diaryKeys[0];
   }
 
-  const dateKey    = diaryKeys.find(k=>/watched.*date/i.test(k)) || diaryKeys.find(k=>/date/i.test(k));
   const rewatchKey = diaryKeys.find(k=>/rewatch/i.test(k));
   const watchedDateKey = Object.keys(watched[0] || {})
   .find(k => /date/i.test(k));
   const watchedDates = watched
   .map(row => row[watchedDateKey])
-  .filter(Boolean); 
+  .filter(Boolean);
 
   // Core stats
   const totalWatched   = watched.length;
@@ -168,7 +172,7 @@ export default function Dashboard({ parsedData }) {
 
   // Ratings & reviews
   const ratingField    = Object.keys(ratings[0] || {}).find(k=>/rating/i.test(k));
-  const validRatings   = ratings.filter(r=>r[ratingField]);
+  const validRatings   = ratingField ? ratings.filter(r=>r[ratingField]) : [];
   const totalRated     = validRatings.length;
   const averageRating  = totalRated
     ? validRatings.reduce((s,r)=>s+parseFloat(r[ratingField]),0)/totalRated
@@ -177,22 +181,39 @@ export default function Dashboard({ parsedData }) {
 
   // Date range + first/last movie
   const sorted = [...diary]
-    .filter(d=>d[dateKey])
+    .filter(d=>d[dateKey] && parseYMD(d[dateKey]))
     .sort((a,b)=>parseYMD(a[dateKey]) - parseYMD(b[dateKey]));
   const firstWatch = sorted.length ? parseYMD(sorted[0][dateKey]).toLocaleDateString() : '';
   const lastWatch  = sorted.length ? parseYMD(sorted[sorted.length-1][dateKey]).toLocaleDateString() : '';
   const firstMovie = sorted.length ? sorted[0][filmKey] : '';
   const lastMovie  = sorted.length ? sorted[sorted.length-1][filmKey] : '';
 
+  const favoriteFilmsData = useMemo(() => {
+    if (!ratings || ratings.length === 0 || !ratingField) {
+      return { favorites: [], stinkers: [], minRating: 0, maxRating: 0 };
+    }
+    const numericRatings = ratings.map(r => parseFloat(r[ratingField])).filter(r => !isNaN(r));
+    if (numericRatings.length === 0) {
+        return { favorites: [], stinkers: [], minRating: 0, maxRating: 0 };
+    }
+    const minRating = Math.min(...numericRatings);
+    const maxRating = Math.max(...numericRatings);
+
+    const favorites = ratings.filter(r => parseFloat(r[ratingField]) === maxRating);
+    const stinkers = ratings.filter(r => parseFloat(r[ratingField]) === minRating);
+
+    return { favorites, stinkers, minRating, maxRating };
+  }, [ratings, ratingField]);
+
 
   // Monthly activity
   const monthlyActivity = useMemo(() => {
     const counts = {};
     watched.forEach(m => {
-      const dt = m[dateKey]
-      ? parseYMD(m[dateKey])
-      : new Date(m.Date);
-      if (!isNaN(dt)) {
+      const dt = m[watchedDateKey]
+      ? parseYMD(m[watchedDateKey])
+      : null;
+      if (dt) {
         const lbl = dt.toLocaleString('default',{month:'short',year:'numeric'});
         counts[lbl] = (counts[lbl]||0) + 1;
       }
@@ -204,24 +225,27 @@ export default function Dashboard({ parsedData }) {
         return new Date(`${mA} 1, ${yA}`) - new Date(`${mB} 1, ${yB}`);
         })
       .map(([month,count])=>({ month, count }));
-  }, [watched, dateKey]);
+  }, [watched, watchedDateKey]);
 
   // Monthly ratings
   const monthlyRatings = useMemo(()=>{
     const sums={}, cnt={};
+    const localRatingField = Object.keys(diary[0] || {}).find(k=>/rating/i.test(k));
     diary.forEach(d=>{
       const dt = parseYMD(d[dateKey]);
-      const rk = Object.keys(d||{}).find(k=>/rating/i.test(k));
-      const rv = parseFloat(d[rk]);
-      if (!isNaN(dt) && !isNaN(rv)) {
+      const rv = localRatingField ? parseFloat(d[localRatingField]) : NaN;
+      if (dt && !isNaN(rv)) {
         const lbl = dt.toLocaleString('default',{month:'short',year:'numeric'});
         sums[lbl] = (sums[lbl]||0) + rv;
         cnt[lbl]  = (cnt[lbl]||0) + 1;
       }
     });
-    return Object.keys(sums)
-      .sort((a,b)=>parseYMD(a)-parseYMD(b))
-      .map(lbl=>({ label: lbl, rating: sums[lbl]/cnt[lbl] }));
+    const sortedLabels = Object.keys(sums).sort((a, b) => {
+        const dateA = new Date(a);
+        const dateB = new Date(b);
+        return dateA - dateB;
+    });
+    return sortedLabels.map(lbl => ({ label: lbl, rating: sums[lbl] / cnt[lbl] }));
   }, [diary, dateKey]);
 
   // Rating distribution
@@ -229,25 +253,59 @@ export default function Dashboard({ parsedData }) {
     const dist={};
     validRatings.forEach(r=>{
       const n = parseFloat(r[ratingField]);
-      const key = n.toFixed(1);
-      dist[key] = (dist[key]||0) + 1;
+      if (!isNaN(n)) {
+        const key = n.toFixed(1);
+        dist[key] = (dist[key]||0) + 1;
+      }
     });
     return Object.entries(dist)
       .sort((a,b)=>parseFloat(a[0]) - parseFloat(b[0]))
       .map(([rating,count])=>({ rating, count }));
-  }, [validRatings]);
+  }, [validRatings, ratingField]);
+    
+  // Average Logging Lag Calculation
+  const averageLoggingLag = useMemo(() => {
+    if (!diary || diary.length === 0) return 0;
+
+    const lags = diary
+      .map(entry => {
+        if (!entry['Date'] || !entry['Watched Date']) {
+          return null;
+        }
+        const loggedDate = parseYMD(entry['Date']);
+        const watchedDate = parseYMD(entry['Watched Date']);
+        
+        if (!loggedDate || !watchedDate) {
+            return null;
+        }
+
+        const differenceMs = loggedDate.getTime() - watchedDate.getTime();
+        const differenceDays = differenceMs / (1000 * 60 * 60 * 24);
+        
+        return differenceDays;
+      })
+      .filter(lag => lag !== null && lag >= 0);
+
+    if (lags.length === 0) return 0;
+
+    const sumOfLags = lags.reduce((acc, lag) => acc + lag, 0);
+    return sumOfLags / lags.length;
+
+  }, [diary]);
 
   // Films by year
   const yearKey = Object.keys(watched[0] || {}).find(k=>/^year$/i.test(k)||/release.*year/i.test(k));
   const yearsData = useMemo(()=>{
+    if (!yearKey) return [];
     const counts = watched.reduce((m,mv)=>{
       const y = parseInt(mv[yearKey],10);
       if (!isNaN(y)) m[y] = (m[y]||0) + 1;
       return m;
     }, {});
     const yrs = Object.keys(counts).map(y=>parseInt(y,10));
-    const minY = yrs.length ? Math.min(...yrs) : 0;
-    const maxY = yrs.length ? Math.max(...yrs) : 0;
+    if (yrs.length === 0) return [];
+    const minY = Math.min(...yrs);
+    const maxY = Math.max(...yrs);
     return Array.from({length:maxY-minY+1},(_,i)=>({
       name: String(minY+i),
       count: counts[minY+i]||0
@@ -281,7 +339,6 @@ export default function Dashboard({ parsedData }) {
 
         {/* Charts Grid */}
         <div className="charts-grid">
-          {/* Monthly Activity */}
           <div className="chart-card">
             <h2>Monthly Activity</h2>
             <ResponsiveContainer width="100%" height={280}>
@@ -297,8 +354,6 @@ export default function Dashboard({ parsedData }) {
               </BarChart>
             </ResponsiveContainer>
           </div>
-
-          {/* Avg Monthly Rating */}
           <div className="chart-card">
             <h2>Avg Monthly Rating</h2>
             <ResponsiveContainer width="100%" height={280}>
@@ -315,8 +370,6 @@ export default function Dashboard({ parsedData }) {
               </LineChart>
             </ResponsiveContainer>
           </div>
-
-          {/* Rating Distribution */}
           <div className="chart-card">
             <h2>Rating Distribution</h2>
             <ResponsiveContainer width="100%" height={280}>
@@ -324,7 +377,7 @@ export default function Dashboard({ parsedData }) {
                 <Pie data={ratingDistribution} dataKey="count" nameKey="rating"
                      cx="50%" cy="50%" outerRadius={80} paddingAngle={0} label={false}>
                   {ratingDistribution.map((_,i)=>(
-                    <Cell key={i} fill={PIE_COLORS[i]} stroke="none" />
+                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} stroke="none" />
                   ))}
                 </Pie>
                 <Tooltip formatter={(v,n)=>[v,`${n}★`]}/>
@@ -333,12 +386,13 @@ export default function Dashboard({ parsedData }) {
               </PieChart>
             </ResponsiveContainer>
           </div>
-
-          {/* Sentiment Tile */}
           <SentimentTile diary={diary} reviews={reviews} />
         </div>
 
-        {/* Date Range */}
+        <div className="stats-grid">
+            <LoggingLagTile averageLag={averageLoggingLag} />
+        </div>
+
         <div className="date-info">
           <div>
             <h3>First Watched</h3>
@@ -350,7 +404,6 @@ export default function Dashboard({ parsedData }) {
           </div>
         </div>
 
-        {/* Word Cloud & Films by Year */}
         <div className="lists-grid">
           <div className="list-card">
             <h2>Word Cloud</h2>
@@ -359,8 +412,8 @@ export default function Dashboard({ parsedData }) {
                 const commentKey = diaryKeys.find(k=>/comment|entry|notes|text/i.test(k));
                 const reviewKey  = Object.keys(reviews[0] || {}).find(k=>/review|text/i.test(k));
                 const texts = [
-                  ...diary.map(d=>d[commentKey]||''),
-                  ...reviews.map(r=>r[reviewKey]||'')
+                  ...(diary.map(d=>(commentKey && d[commentKey])||'')),
+                  ...(reviews.map(r=>(reviewKey && r[reviewKey])||''))
                 ].join(' ')
                   .toLowerCase()
                   .replace(/[^a-z\s]/g,' ')
@@ -383,7 +436,12 @@ export default function Dashboard({ parsedData }) {
               • Font size & color darkness ∝ term frequency
             </div>
           </div>
-
+            <FavoritesTile
+              favorites={favoriteFilmsData.favorites}
+              stinkers={favoriteFilmsData.stinkers}
+              minRating={favoriteFilmsData.minRating}
+              maxRating={favoriteFilmsData.maxRating}
+            />
           <div className="chart-card">
             <h2>Films Watched by Year</h2>
             <ResponsiveContainer width="100%" height={280}>
