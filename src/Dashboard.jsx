@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import cloud from 'd3-cloud';
-import { scaleLinear } from 'd3-scale';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, Legend
@@ -9,6 +7,8 @@ import SentimentTile from './SentimentTile';
 import HeatmapTile from './HeatmapTile';
 import FavoritesTile from './FavoritesTile';
 import LoggingLagTile from './LoggingLagTile';
+import RatingChangeTile from './RatingChangeTile'; // Import the new tile
+import WordCloudD3 from './WordCloudD3';
 
 // ── Parse “YYYY-MM-DD” as a local date (no off-by-one) ──
 const parseYMD = s => {
@@ -54,56 +54,6 @@ const CINEMATIC_TERMS = [
 const COLORS = ['#0088FE','#00C49F','#FFBB28','#FF8042','#8884d8','#82ca9d','#ffc658'];
 const PIE_COLORS = ['#3366CC','#DC3912','#FF9900','#109618','#990099','#3B3EAC','#0099C6','#DD4477','#66AA00'];
 
-// WordCloudD3 component
-function WordCloudD3({ data, width, height }) {
-  const [words, setWords] = useState([]);
-
-  useEffect(() => {
-    cloud()
-      .size([width, height])
-      .words(data.map(d => ({ text: d.text, value: d.value })))
-      .padding(5)
-      .rotate(0)
-      .font('Impact')
-      .fontSize(d => 12 + Math.log2(d.value) * 8)
-      .on('end', laidOut => setWords(laidOut))
-      .start();
-  }, [data, width, height]);
-
-  const [min, max] = useMemo(() => {
-    if (!data || data.length === 0) return [0, 0];
-    const vals = data.map(d => d.value);
-    return [Math.min(...vals), Math.max(...vals)];
-  }, [data]);
-
-  const colorScale = scaleLinear()
-    .domain([min, max])
-    .range(['#D1C4E9', '#5E35B1']);
-
-  return (
-    <svg width={width} height={height} style={{ display:'block', margin:'0 auto' }}>
-      <g transform={`translate(${width/2},${height/2})`}>
-        {words.map((w,i) => (
-          <text
-            key={i}
-            textAnchor="middle"
-            transform={`translate(${w.x},${w.y}) rotate(${w.rotate})`}
-            style={{
-              fontSize: `${w.size}px`,
-              fill: colorScale(w.value),
-              fontFamily: 'Impact, sans-serif',
-              opacity: 0.9,
-              whiteSpace: 'nowrap'
-            }}
-          >
-            {w.text}
-          </text>
-        ))}
-      </g>
-    </svg>
-  );
-}
-
 export default function Dashboard({ parsedData }) {
   // Check for required CSVs
   const required = ['diary','watched','ratings','reviews'];
@@ -139,29 +89,10 @@ export default function Dashboard({ parsedData }) {
 
   // Detect columns
   const diaryKeys  = Object.keys(diary[0] || {});
-  let filmKey = diaryKeys.find(k => /film|movie|title|name/i.test(k));
-  if (!filmKey) {
-    filmKey = diaryKeys.find(k => {
-      const cell = diary[0]?.[k];
-      return (
-        cell &&
-        isNaN(Date.parse(cell)) &&
-        isNaN(Number(cell))
-      );
-    });
-  }
-  
-  const dateKey    = diaryKeys.find(k=>/watched.*date/i.test(k)) || diaryKeys.find(k=>/date/i.test(k));
-  if (!filmKey) {
-    filmKey = diaryKeys.find(k => k !== dateKey) || diaryKeys[0];
-  }
-
+  const filmKey = diaryKeys.find(k => /film|movie|title|name/i.test(k)) || 'Name';
   const rewatchKey = diaryKeys.find(k=>/rewatch/i.test(k));
-  const watchedDateKey = Object.keys(watched[0] || {})
-  .find(k => /date/i.test(k));
-  const watchedDates = watched
-  .map(row => row[watchedDateKey])
-  .filter(Boolean);
+  const watchedDateKey = Object.keys(watched[0] || {}).find(k => /date/i.test(k)) || 'Date';
+  const watchedDates = watched.map(row => row[watchedDateKey]).filter(Boolean);
 
   // Core stats
   const totalWatched   = watched.length;
@@ -181,10 +112,10 @@ export default function Dashboard({ parsedData }) {
 
   // Date range + first/last movie
   const sorted = [...diary]
-    .filter(d=>d[dateKey] && parseYMD(d[dateKey]))
-    .sort((a,b)=>parseYMD(a[dateKey]) - parseYMD(b[dateKey]));
-  const firstWatch = sorted.length ? parseYMD(sorted[0][dateKey]).toLocaleDateString() : '';
-  const lastWatch  = sorted.length ? parseYMD(sorted[sorted.length-1][dateKey]).toLocaleDateString() : '';
+    .filter(d=>d['Watched Date'] && parseYMD(d['Watched Date']))
+    .sort((a,b)=>parseYMD(a['Watched Date']) - parseYMD(b['Watched Date']));
+  const firstWatch = sorted.length ? parseYMD(sorted[0]['Watched Date']).toLocaleDateString() : '';
+  const lastWatch  = sorted.length ? parseYMD(sorted[sorted.length-1]['Watched Date']).toLocaleDateString() : '';
   const firstMovie = sorted.length ? sorted[0][filmKey] : '';
   const lastMovie  = sorted.length ? sorted[sorted.length-1][filmKey] : '';
 
@@ -198,41 +129,31 @@ export default function Dashboard({ parsedData }) {
     }
     const minRating = Math.min(...numericRatings);
     const maxRating = Math.max(...numericRatings);
-
     const favorites = ratings.filter(r => parseFloat(r[ratingField]) === maxRating);
     const stinkers = ratings.filter(r => parseFloat(r[ratingField]) === minRating);
-
     return { favorites, stinkers, minRating, maxRating };
   }, [ratings, ratingField]);
 
-
-  // Monthly activity
   const monthlyActivity = useMemo(() => {
     const counts = {};
     watched.forEach(m => {
-      const dt = m[watchedDateKey]
-      ? parseYMD(m[watchedDateKey])
-      : null;
+      const dt = parseYMD(m[watchedDateKey]);
       if (dt) {
         const lbl = dt.toLocaleString('default',{month:'short',year:'numeric'});
         counts[lbl] = (counts[lbl]||0) + 1;
       }
     });
-    return Object.entries(counts)
-      .sort((a,b)=>{
-        const [mA,yA] = a[0].split(' ');
-        const [mB,yB] = b[0].split(' ');
-        return new Date(`${mA} 1, ${yA}`) - new Date(`${mB} 1, ${yB}`);
-        })
-      .map(([month,count])=>({ month, count }));
+    const sortedEntries = Object.entries(counts).sort((a,b)=>{
+        return new Date(a[0]) - new Date(b[0]);
+    });
+    return sortedEntries.map(([month,count])=>({ month, count }));
   }, [watched, watchedDateKey]);
 
-  // Monthly ratings
   const monthlyRatings = useMemo(()=>{
     const sums={}, cnt={};
     const localRatingField = Object.keys(diary[0] || {}).find(k=>/rating/i.test(k));
     diary.forEach(d=>{
-      const dt = parseYMD(d[dateKey]);
+      const dt = parseYMD(d['Watched Date']);
       const rv = localRatingField ? parseFloat(d[localRatingField]) : NaN;
       if (dt && !isNaN(rv)) {
         const lbl = dt.toLocaleString('default',{month:'short',year:'numeric'});
@@ -240,15 +161,10 @@ export default function Dashboard({ parsedData }) {
         cnt[lbl]  = (cnt[lbl]||0) + 1;
       }
     });
-    const sortedLabels = Object.keys(sums).sort((a, b) => {
-        const dateA = new Date(a);
-        const dateB = new Date(b);
-        return dateA - dateB;
-    });
-    return sortedLabels.map(lbl => ({ label: lbl, rating: sums[lbl] / cnt[lbl] }));
-  }, [diary, dateKey]);
+    const sortedEntries = Object.entries(sums).sort((a,b) => new Date(a[0]) - new Date(b[0]));
+    return sortedEntries.map(([lbl, sum]) => ({ label: lbl, rating: sum/cnt[lbl] }));
+  }, [diary]);
 
-  // Rating distribution
   const ratingDistribution = useMemo(()=>{
     const dist={};
     validRatings.forEach(r=>{
@@ -263,37 +179,87 @@ export default function Dashboard({ parsedData }) {
       .map(([rating,count])=>({ rating, count }));
   }, [validRatings, ratingField]);
     
-  // Average Logging Lag Calculation
   const averageLoggingLag = useMemo(() => {
     if (!diary || diary.length === 0) return 0;
-
     const lags = diary
       .map(entry => {
-        if (!entry['Date'] || !entry['Watched Date']) {
-          return null;
-        }
+        if (!entry['Date'] || !entry['Watched Date']) return null;
         const loggedDate = parseYMD(entry['Date']);
         const watchedDate = parseYMD(entry['Watched Date']);
-        
-        if (!loggedDate || !watchedDate) {
-            return null;
-        }
-
+        if (!loggedDate || !watchedDate) return null;
         const differenceMs = loggedDate.getTime() - watchedDate.getTime();
-        const differenceDays = differenceMs / (1000 * 60 * 60 * 24);
-        
-        return differenceDays;
+        return differenceMs / (1000 * 60 * 60 * 24);
       })
       .filter(lag => lag !== null && lag >= 0);
-
     if (lags.length === 0) return 0;
-
     const sumOfLags = lags.reduce((acc, lag) => acc + lag, 0);
     return sumOfLags / lags.length;
-
   }, [diary]);
 
-  // Films by year
+  const prolificMonth = useMemo(() => {
+    if (!monthlyActivity || monthlyActivity.length === 0) {
+      return { month: 'N/A', count: 0 };
+    }
+    return monthlyActivity.reduce((max, current) => {
+      return current.count > max.count ? current : max;
+    }, { month: '', count: 0 });
+  }, [monthlyActivity]);
+
+  const busiestDay = useMemo(() => {
+    if (!diary || diary.length === 0) return { day: 'N/A', count: 0 };
+    const dayCounts = diary.reduce((acc, entry) => {
+        const watchedDate = parseYMD(entry['Watched Date']);
+        if (watchedDate) {
+            const day = watchedDate.toLocaleDateString('en-US', { weekday: 'long' });
+            acc[day] = (acc[day] || 0) + 1;
+        }
+        return acc;
+    }, {});
+    if (Object.keys(dayCounts).length === 0) return { day: 'N/A', count: 0 };
+    const topDay = Object.entries(dayCounts).reduce((max, current) => current[1] > max[1] ? current : max);
+    return { day: topDay[0], count: topDay[1] };
+  }, [diary]);
+  
+  const biggestRatingChange = useMemo(() => {
+    if (!diary || diary.length === 0) return null;
+
+    const filmRatings = diary.reduce((acc, entry) => {
+      const name = entry[filmKey];
+      const rating = parseFloat(entry['Rating']);
+      const date = parseYMD(entry['Date']);
+
+      if (name && !isNaN(rating) && date) {
+        if (!acc[name]) {
+          acc[name] = [];
+        }
+        acc[name].push({ rating, date });
+      }
+      return acc;
+    }, {});
+
+    let maxChange = { name: null, oldRating: 0, newRating: 0, change: 0 };
+
+    for (const name in filmRatings) {
+      if (filmRatings[name].length > 1) {
+        filmRatings[name].sort((a, b) => a.date - b.date);
+        
+        const oldEntry = filmRatings[name][0];
+        const newEntry = filmRatings[name][filmRatings[name].length - 1];
+        const change = Math.abs(newEntry.rating - oldEntry.rating);
+
+        if (change > maxChange.change) {
+          maxChange = {
+            name,
+            oldRating: oldEntry.rating,
+            newRating: newEntry.rating,
+            change,
+          };
+        }
+      }
+    }
+    return maxChange.change > 0 ? maxChange : null;
+  }, [diary, filmKey]);
+
   const yearKey = Object.keys(watched[0] || {}).find(k=>/^year$/i.test(k)||/release.*year/i.test(k));
   const yearsData = useMemo(()=>{
     if (!yearKey) return [];
@@ -306,10 +272,7 @@ export default function Dashboard({ parsedData }) {
     if (yrs.length === 0) return [];
     const minY = Math.min(...yrs);
     const maxY = Math.max(...yrs);
-    return Array.from({length:maxY-minY+1},(_,i)=>({
-      name: String(minY+i),
-      count: counts[minY+i]||0
-    }));
+    return Array.from({length:maxY-minY+1},(_,i)=>({ name: String(minY+i), count: counts[minY+i]||0 }));
   }, [watched, yearKey]);
 
   return (
@@ -320,7 +283,6 @@ export default function Dashboard({ parsedData }) {
       </div>
 
       <div className="dashboard-content">
-        {/* Stats Grid */}
         <div className="stats-grid">
           {[
             ['Total Watched', totalWatched],
@@ -337,18 +299,12 @@ export default function Dashboard({ parsedData }) {
           ))}
         </div>
 
-        {/* Charts Grid */}
         <div className="charts-grid">
           <div className="chart-card">
             <h2>Monthly Activity</h2>
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={monthlyActivity}>
-                <XAxis dataKey="month" tickFormatter={str=>{
-                    const [m,y]=str.split(' ');
-                    return `${m} '${y.slice(-2)}`;
-                  }}
-                  interval={Math.floor(monthlyActivity.length/6)}
-                  tick={{fontSize:12}} height={45} angle={-45} textAnchor="end"/>
+                <XAxis dataKey="month" tickFormatter={str => str ? `${str.split(' ')[0]} '${str.split(' ')[1]?.slice(-2)}` : ''} interval="preserveStartEnd" tick={{fontSize:12}} height={45} angle={-45} textAnchor="end"/>
                 <YAxis /><Tooltip />
                 <Bar dataKey="count" fill={COLORS[0]} />
               </BarChart>
@@ -358,12 +314,7 @@ export default function Dashboard({ parsedData }) {
             <h2>Avg Monthly Rating</h2>
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={monthlyRatings}>
-                <XAxis dataKey="label" tickFormatter={str=>{
-                    const [m,y]=str.split(' ');
-                    return `${m} '${y.slice(-2)}`;
-                  }}
-                  interval={Math.floor(monthlyRatings.length/6)}
-                  tick={{fontSize:12}} height={45} angle={-45} textAnchor="end"/>
+                <XAxis dataKey="label" tickFormatter={str => str ? `${str.split(' ')[0]} '${str.split(' ')[1]?.slice(-2)}` : ''} interval="preserveStartEnd" tick={{fontSize:12}} height={45} angle={-45} textAnchor="end"/>
                 <YAxis domain={[0,5]} tickFormatter={val=>val.toFixed(2)}/>
                 <Tooltip formatter={val=>val.toFixed(2)}/>
                 <Line type="monotone" dataKey="rating" stroke={COLORS[1]}/>                
@@ -374,15 +325,11 @@ export default function Dashboard({ parsedData }) {
             <h2>Rating Distribution</h2>
             <ResponsiveContainer width="100%" height={280}>
               <PieChart>
-                <Pie data={ratingDistribution} dataKey="count" nameKey="rating"
-                     cx="50%" cy="50%" outerRadius={80} paddingAngle={0} label={false}>
-                  {ratingDistribution.map((_,i)=>(
-                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} stroke="none" />
-                  ))}
+                <Pie data={ratingDistribution} dataKey="count" nameKey="rating" cx="50%" cy="50%" outerRadius={80} paddingAngle={0} label={false}>
+                  {ratingDistribution.map((_,i)=>(<Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} stroke="none" />))}
                 </Pie>
                 <Tooltip formatter={(v,n)=>[v,`${n}★`]}/>
-                <Legend layout="horizontal" align="center" verticalAlign="bottom"
-                        iconSize={12} formatter={v=>`${v}★`} wrapperStyle={{paddingTop:10}}/>
+                <Legend layout="horizontal" align="center" verticalAlign="bottom" iconSize={12} formatter={v=>`${v}★`} wrapperStyle={{paddingTop:10}}/>
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -391,6 +338,21 @@ export default function Dashboard({ parsedData }) {
 
         <div className="stats-grid">
             <LoggingLagTile averageLag={averageLoggingLag} />
+            <div className="stat-card">
+              <h3>Most Prolific Month</h3>
+              <div className="prolific-month-value">
+                <p className="stat-value">{prolificMonth.month}</p>
+                <p className="prolific-month-count">{prolificMonth.count} films</p>
+              </div>
+            </div>
+            <div className="stat-card">
+              <h3>Your Busiest Day</h3>
+              <div className="prolific-month-value">
+                <p className="stat-value">{busiestDay.day}</p>
+                <p className="prolific-month-count">{busiestDay.count} films watched</p>
+              </div>
+            </div>
+            <RatingChangeTile changeInfo={biggestRatingChange} />
         </div>
 
         <div className="date-info">
@@ -436,7 +398,7 @@ export default function Dashboard({ parsedData }) {
               • Font size & color darkness ∝ term frequency
             </div>
           </div>
-            <FavoritesTile
+          <FavoritesTile
               favorites={favoriteFilmsData.favorites}
               stinkers={favoriteFilmsData.stinkers}
               minRating={favoriteFilmsData.minRating}
