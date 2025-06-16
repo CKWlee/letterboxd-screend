@@ -1,32 +1,47 @@
-/* App.css */
-
+/* App.css - Final Corrected Version v3 */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@300;400&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap');
 
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 :root {
-  --gradient-start: #D8B8E8;    /* light lavender */
-  --gradient-end:   #AEDFF7;    /* sky blue */
-  --accent:         #FFD700;    /* golden marquee glow */
-  --text-dark:      #333333;    /* dark text for contrast */
-  --container-bg:   rgba(255,255,255,0.85);
-  --shadow:         0 4px 20px rgba(0,0,0,0.1);
+  --bg-gradient: linear-gradient(135deg, #A1C4FD 0%, #C5A3FF 100%);
+  --card-bg: rgba(255,255,255,0.9);
+  --text-primary: #2E2E2E;
+  --text-secondary: #555;
+  --accent-lavender: #C5A3FF;
+  --accent-sky: #A1C4FD;
+  --shadow-soft: 0 4px 12px rgba(0,0,0,0.1);
 }
 
 html, body, #root {
   margin: 0;
   padding: 0;
   height: 100%;
-  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-  font-family: 'Roboto Mono', monospace;
+  background: var(--bg-gradient);
+  font-family: 'Montserrat', sans-serif;
   overflow-x: hidden;
-  overflow-y: auto;                /* allow scrolling */
-  color: var(--text-dark);
+  overflow-y: auto;
+  color: var(--text-primary);
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: url('film-grain.png') repeat; /* Assumes you have film-grain.png */
+  opacity: 0.02;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .app-container {
   min-height: 100vh;
   display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 /* ========== Upload & Loading Screens ========== */
@@ -37,10 +52,11 @@ html, body, #root {
   flex-direction: column;
   align-items: center;
   gap: 20px;
-  background: var(--container-bg);
+  background: var(--card-bg);
   padding: 40px 60px;
   border-radius: 12px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-soft);
+  margin: auto;
 }
 
 .logo {
@@ -48,11 +64,15 @@ html, body, #root {
   margin-bottom: 10px;
 }
 
+h1, h2, h3 {
+  font-family: 'Playfair Display', serif;
+  color: var(--text-primary);
+}
+
 h1 {
   margin: 0;
   font-size: 2.8rem;
   letter-spacing: 3px;
-  color: var(--accent);
 }
 
 .upload-container p,
@@ -62,34 +82,32 @@ h1 {
   line-height: 1.4;
   text-align: center;
   max-width: 280px;
+  color: var(--text-secondary);
 }
 
-/* hidden native file input */
 #file-input {
   display: none;
 }
 
-/* styled upload button */
 .upload-button {
-  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-  border: 2px solid var(--accent);
+  background: linear-gradient(135deg, var(--accent-sky), var(--accent-lavender));
+  border: 2px solid var(--accent-lavender);
   border-radius: 30px;
   padding: 14px 40px;
   font-size: 1.1rem;
   font-weight: bold;
-  color: var(--text-dark);
+  color: var(--text-primary);
   text-transform: uppercase;
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s;
-  box-shadow: var(--shadow), 0 0 10px rgba(255,215,0,0.5);
+  box-shadow: var(--shadow-soft);
 }
 
 .upload-button:hover {
   transform: scale(1.05);
   box-shadow:
     0 8px 20px rgba(0,0,0,0.2),
-    0 0 15px var(--accent),
-    0 0 30px rgba(255,255,255,0.4);
+    0 0 15px var(--accent-lavender);
 }
 
 .upload-button:active {
@@ -106,16 +124,15 @@ h1 {
 
 .progress-bar {
   height: 100%;
-  background: var(--accent);
+  background: var(--accent-lavender);
   transition: width 0.3s ease-in-out;
 }
 
-/* spinner */
 .spinner {
   width: 60px;
   height: 60px;
   border: 6px solid rgba(0,0,0,0.1);
-  border-top-color: var(--accent);
+  border-top-color: var(--accent-lavender);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -128,15 +145,20 @@ h1 {
 
 .dashboard {
   padding: 2rem;
+  width: 100%;
 }
 
-/* wrap content to max-width for readability */
+.dashboard-header {
+  text-align: center;
+  padding: 1.5rem 0;
+  margin-bottom: 1rem;
+}
+
 .dashboard-content {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
-/* Stats grid */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -145,12 +167,13 @@ h1 {
 }
 
 .stat-card {
-  background: var(--container-bg);
+  background: var(--card-bg);
   border-radius: 12px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-soft);
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
+  min-height: 100px;
 }
 
 .stat-card h3 {
@@ -161,26 +184,11 @@ h1 {
 .stat-value {
   font-size: 2.5rem;
   font-weight: bold;
-  color: var(--accent);
+  color: var(--accent-lavender);
   margin-top: auto;
 }
 
-/* Charts grid */
-.charts-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-.chart-card {
-  background: var(--container-bg);
-  border-radius: 12px;
-  box-shadow: var(--shadow);
-  padding: 1rem;
-}
-
-/* Top lists */
+.charts-grid,
 .lists-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -188,10 +196,11 @@ h1 {
   margin-bottom: 2rem;
 }
 
+.chart-card,
 .list-card {
-  background: var(--container-bg);
+  background: var(--card-bg);
   border-radius: 12px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-soft);
   padding: 1rem;
 }
 
@@ -209,7 +218,6 @@ h1 {
   margin-bottom: 0.25rem;
 }
 
-/* First/Last watch dates */
 .date-info {
   display: flex;
   flex-wrap: wrap;
@@ -218,9 +226,9 @@ h1 {
 }
 
 .date-info > div {
-  background: var(--container-bg);
+  background: var(--card-bg);
   border-radius: 12px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-soft);
   flex: 1;
   min-width: 200px;
   padding: 1rem;
@@ -230,11 +238,92 @@ h1 {
 .date-info h3 {
   margin: 0;
   font-size: 1rem;
-  color: var(--text-dark);
+  color: var(--text-primary);
 }
 
 .date-info p {
   margin: 0.5rem 0 0;
   font-size: 1.1rem;
-  color: var(--accent);
+  color: var(--accent-lavender);
+}
+
+/* ========== Favorites Tile Styles ========== */
+
+.favorites-tile h2 {
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.favorites-content {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.list-section {
+  width: 50%;
+}
+
+.list-section h3 {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #ddd;
+}
+
+/* --- ADD THIS NEW RULE --- */
+.list-section ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 200px; /* Sets a max height for the list area */
+  overflow-y: auto; /* Adds a scrollbar only when needed */
+  padding-right: 0.5rem; /* Adds a little space for the scrollbar */
+}
+
+.list-section li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.25rem 0;
+}
+
+.film-title {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 1rem;
+}
+
+.film-year {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  background-color: #eee;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+/* ========== Logging Lag Tile Styles ========== */
+
+.lag-value-container {
+  display: flex;
+  align-items: flex-end; /* Aligns number and label at the bottom */
+  gap: 0.5rem;
+  margin-top: auto; /* Pushes the container to the bottom of the card */
+}
+
+.lag-value {
+  line-height: 1; /* Removes extra space below the number */
+}
+
+.lag-label {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 500;
+  padding-bottom: 0.25rem; /* Aligns text with the baseline of the number */
+  color: var(--text-secondary);
 }

@@ -2,23 +2,25 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Sentiment from 'sentiment';
 
-// install once: npm install sentiment
+// Creates the analyzer instance used by the component
 const sentimentAnalyzer = new Sentiment();
 
 export default function SentimentTile({ diary, reviews }) {
   const [sentiment, setSentiment] = useState(null);
 
-  // pick text fields
   const commentKey = useMemo(() => {
+    if (!diary || diary.length === 0) return null;
     const keys = Object.keys(diary[0] || {});
     return keys.find(k => /comment|entry|notes|text|review/i.test(k));
   }, [diary]);
 
   const reviewKey = useMemo(() => {
+    if (!reviews || reviews.length === 0) return null;
     const keys = Object.keys(reviews[0] || {});
     return keys.find(k => /review|text/i.test(k));
   }, [reviews]);
 
+  // This hook performs the final, scaled "Average Intensity" calculation.
   useEffect(() => {
     if (!commentKey && !reviewKey) {
       setSentiment(0);
@@ -30,24 +32,27 @@ export default function SentimentTile({ diary, reviews }) {
       reviews.map(r => r[reviewKey] || '').join(' ')
     ].join(' ');
 
-    fetch('https://sentim-api.herokuapp.com/api/v1/', {
-      method: 'POST',
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: textBlob })
-    })
-      .then(r => r.json())
-      .then(data => {
-        const p = data.result?.polarity;
-        if (typeof p === 'number') setSentiment(p);
-        else throw new Error('Bad API response');
-      })
-      .catch(() => {
-        const result = sentimentAnalyzer.analyze(textBlob);
-        const norm = Math.max(-1, Math.min(1, result.comparative));
-        setSentiment(norm);
-      });
+    const result = sentimentAnalyzer.analyze(textBlob);
+    const totalScore = result.score;
+    const scoredWordsCount = result.positive.length + result.negative.length;
+
+    // 1. Calculate the "intensity" score. This can be outside the -1 to 1 range.
+    let intensityScore = 0;
+    if (scoredWordsCount > 0) {
+      intensityScore = totalScore / scoredWordsCount;
+    }
+
+    // 2. NEW: Scale the score to fit the [-1, 1] range, since the max word score is 5.
+    const scaledScore = intensityScore / 5.0;
+
+    // 3. Normalize the scaled score as a final safety check and set the state.
+    const normalizedScore = Math.max(-1, Math.min(1, scaledScore));
+    setSentiment(normalizedScore);
+
   }, [diary, reviews, commentKey, reviewKey]);
 
+
+  // The rendering logic below does not need to change.
   if (sentiment === null) {
     return (
       <div
@@ -60,7 +65,6 @@ export default function SentimentTile({ diary, reviews }) {
     );
   }
 
-  // compute values
   const percent = Math.round((sentiment + 1) * 50);
   const radius = 60;
   const circ = 2 * Math.PI * radius;
@@ -79,7 +83,6 @@ export default function SentimentTile({ diary, reviews }) {
     >
       <h2 style={{ margin: 0, alignSelf: 'flex-start' }}>Average Mood</h2>
 
-      {/* Larger Gauge */}
       <svg width={140} height={140} style={{ marginTop: '8px' }}>
         <circle cx={70} cy={70} r={radius} fill="none" stroke="#eee" strokeWidth={14} />
         <circle
@@ -98,10 +101,8 @@ export default function SentimentTile({ diary, reviews }) {
         </text>
       </svg>
 
-      {/* Descriptor */}
       <div style={{ fontSize: '1rem', color: '#333' }}>{descriptor}</div>
 
-      {/* Key */}
       <div
         style={{
           fontSize: '0.85rem',
