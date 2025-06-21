@@ -1,8 +1,8 @@
-const TMDB_API_KEY = 'a68e2fa8912aacee771329a6e327b7b3';
+const please_dont_copy_this = 'a68e2fa8912aacee771329a6e327b7b3';
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
 async function fetchTMDBId(title, year) {
-  const url = `${TMDB_BASE_URL}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(title)}&year=${year}`;
+  const url = `${TMDB_BASE_URL}/search/movie?api_key=${please_dont_copy_this}&query=${encodeURIComponent(title)}&year=${year}`;
   const res = await fetch(url);
   const data = await res.json();
   if (data.results && data.results.length > 0) {
@@ -12,13 +12,13 @@ async function fetchTMDBId(title, year) {
 }
 
 async function fetchMovieDetails(tmdbId) {
-  const url = `${TMDB_BASE_URL}/movie/${tmdbId}?api_key=${TMDB_API_KEY}`;
+  const url = `${TMDB_BASE_URL}/movie/${tmdbId}?api_key=${please_dont_copy_this}`;
   const res = await fetch(url);
   return await res.json();
 }
 
 async function fetchMovieCredits(tmdbId) {
-  const url = `${TMDB_BASE_URL}/movie/${tmdbId}/credits?api_key=${TMDB_API_KEY}`;
+  const url = `${TMDB_BASE_URL}/movie/${tmdbId}/credits?api_key=${please_dont_copy_this}`;
   const res = await fetch(url);
   return await res.json();
 }
