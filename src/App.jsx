@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import JSZip from 'jszip';
 import Papa from 'papaparse';
-import Dashboard from './dashboard';
+import Dashboard from './Dashboard';
 import logo from './assets/letterboxd-logo.png';
 import './App.css';
 

@@ -3,12 +3,20 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, Legend
 } from 'recharts';
+import { enrichMoviesWithTMDB } from './utils/tmdb';
 import SentimentTile from './SentimentTile';
 import HeatmapTile from './HeatmapTile';
 import FavoritesTile from './FavoritesTile';
 import LoggingLagTile from './LoggingLagTile';
 import RatingChangeTile from './RatingChangeTile'; // Import the new tile
 import WordCloudD3 from './WordCloudD3';
+import DecadeRatingsTile from './DecadeRatingsTile';
+import GoToRatingTile from './GoToRatingTile';
+import RewatchAnalysisTile from './RewatchAnalysisTile';
+import TopDirectorsTile from './TopDirectorsTile';
+import StreakTile from './StreakTile';
+import BingeWatchTile from './BingeWatchTile';
+import PrimeTimeTile from './PrimeTimeTile';
 
 // ── Parse “YYYY-MM-DD” as a local date (no off-by-one) ──
 const parseYMD = s => {
@@ -59,6 +67,10 @@ export default function Dashboard({ parsedData }) {
   const required = ['diary','watched','ratings','reviews'];
   const provided = Object.keys(parsedData).map(k => k.toLowerCase());
   const missing  = required.filter(k => !provided.includes(k));
+  // State for the data fetched from TMDB
+  const [enrichedData, setEnrichedData] = useState(null);
+  // State to track the API call status ('idle', 'loading', 'success', 'error')
+  const [enrichmentStatus, setEnrichmentStatus] = useState('idle');
 
   if (missing.length) {
     return (
@@ -275,6 +287,174 @@ export default function Dashboard({ parsedData }) {
     return Array.from({length:maxY-minY+1},(_,i)=>({ name: String(minY+i), count: counts[minY+i]||0 }));
   }, [watched, yearKey]);
 
+  // Inside your Dashboard.jsx component
+
+  const decadeRatings = useMemo(() => {
+    if (!ratings || ratings.length === 0) return [];
+
+    const ratingsByDecade = ratings.reduce((acc, film) => {
+      const year = parseInt(film.Year, 10);
+      const ratingVal = parseFloat(film.Rating);
+      if (isNaN(year) || isNaN(ratingVal)) return acc;
+
+      const decade = Math.floor(year / 10) * 10;
+      if (!acc[decade]) {
+        acc[decade] = { ratings: [], total: 0 };
+      }
+      acc[decade].ratings.push(ratingVal);
+      acc[decade].total += ratingVal;
+      return acc;
+    }, {});
+
+    return Object.entries(ratingsByDecade)
+      .map(([decade, data]) => ({
+        decade: `${decade}s`,
+        averageRating: data.total / data.ratings.length,
+        count: data.ratings.length,
+      }))
+      .sort((a, b) => a.decade.localeCompare(b.decade));
+  }, [ratings]);
+
+  const goToRating = useMemo(() => {
+    if (!validRatings || validRatings.length === 0) return { rating: 'N/A', count: 0 };
+
+    const ratingCounts = validRatings.reduce((acc, r) => {
+      const key = parseFloat(r[ratingField]).toFixed(1);
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+    if (Object.keys(ratingCounts).length === 0) return { rating: 'N/A', count: 0 };
+
+    const topRating = Object.entries(ratingCounts).reduce((max, current) =>
+      current[1] > max[1] ? current : max
+    );
+
+    return { rating: topRating[0], count: topRating[1] };
+  }, [validRatings, ratingField]);
+
+    const mostRewatched = useMemo(() => {
+    if (!diary || diary.length === 0) return { name: null, count: 0 };
+    // Filter for entries that are explicitly marked as rewatches
+    const rewatches = diary.filter(d => d.Rewatch?.toLowerCase() === 'yes');
+    if (rewatches.length === 0) return { name: 'No rewatches yet!', count: 1 };
+
+    const counts = rewatches.reduce((acc, film) => {
+      acc[film.Name] = (acc[film.Name] || 1) + 1; // Start count at 1 for first rewatch, add subsequent
+      return acc;
+    }, {});
+
+    const topFilm = Object.entries(counts).reduce((max, current) =>
+      current[1] > max[1] ? current : max
+    , [null, 0]);
+
+    return { name: topFilm[0], count: topFilm[1] };
+  }, [diary]);
+
+
+  const rewatchRatio = useMemo(() => {
+    const total = diary.length;
+    if (total === 0) return { rewatches: 0, new: 0 };
+
+    const rewatchCount = diary.filter(d => d.Rewatch?.toLowerCase() === 'yes').length;
+    return {
+      rewatches: rewatchCount,
+      new: total - rewatchCount,
+    };
+  }, [diary]);
+
+  const topDirectors = useMemo(() => {
+    if (!enrichedData) return [];
+
+    const directorCounts = enrichedData.reduce((acc, movie) => {
+      if (movie.director && movie.director !== 'Unknown') {
+        acc[movie.director] = (acc[movie.director] || 0) + 1;
+      }
+      return acc;
+    }, {});
+
+    return Object.entries(directorCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10); // Get the top 10
+  }, [enrichedData]); // This calculation depends on the fetched data
+
+  const longestStreak = useMemo(() => {
+    if (!diary || diary.length === 0) return 0;
+
+    // Get unique, sorted dates
+    const uniqueDates = [...new Set(diary.map(d => d['Watched Date']))]
+      .map(s => new Date(s))
+      .filter(d => !isNaN(d.getTime()))
+      .sort((a, b) => a - b);
+
+    if (uniqueDates.length === 0) return 0;
+
+    let maxStreak = 1;
+    let currentStreak = 1;
+
+    for (let i = 1; i < uniqueDates.length; i++) {
+      const diff = (uniqueDates[i] - uniqueDates[i - 1]) / (1000 * 60 * 60 * 24);
+      if (diff === 1) {
+        currentStreak++;
+      } else {
+        maxStreak = Math.max(maxStreak, currentStreak);
+        currentStreak = 1;
+      }
+    }
+    // Final check for a streak that goes to the very end
+    maxStreak = Math.max(maxStreak, currentStreak);
+
+    return maxStreak;
+  }, [diary]);
+
+  const bingeWatchCount = useMemo(() => {
+    if (!diary || diary.length === 0) return 0;
+
+    const countsByDate = diary.reduce((acc, entry) => {
+      const date = entry['Watched Date'];
+      if (date) {
+        acc[date] = (acc[date] || 0) + 1;
+      }
+      return acc;
+    }, {});
+
+    const maxCount = Math.max(0, ...Object.values(countsByDate));
+    return maxCount;
+  }, [diary]);
+
+  const primeTimeYear = useMemo(() => {
+    if (!diary || diary.length === 0) return 'N/A';
+
+    const years = diary.map(film => parseInt(film.Year, 10)).filter(year => !isNaN(year));
+    if (years.length === 0) return 'N/A';
+
+    const average = years.reduce((sum, year) => sum + year, 0) / years.length;
+    return Math.round(average);
+  }, [diary]);
+
+
+  useEffect(() => {
+    const fetchEnrichedData = async () => {
+      // Only run if we have diary data and haven't already fetched
+      if (diary.length > 0 && enrichmentStatus === 'idle') {
+        setEnrichmentStatus('loading');
+        try {
+          // We'll just enrich a slice of the diary to respect API rate limits and for speed
+          const moviesToEnrich = diary.slice(0, 50); // Enrich the first 50 films
+          const enriched = await enrichMoviesWithTMDB(moviesToEnrich);
+          setEnrichedData(enriched);
+          setEnrichmentStatus('success');
+        } catch (error) {
+          console.error("TMDB enrichment failed:", error);
+          setEnrichmentStatus('error');
+        }
+      }
+    };
+
+    fetchEnrichedData();
+  }, [diary, enrichmentStatus]);
+
   return (
     <div className="dashboard">
       <div className="dashboard-header">
@@ -415,6 +595,17 @@ export default function Dashboard({ parsedData }) {
               </BarChart>
             </ResponsiveContainer>
           </div>
+        </div>
+        <div className="lists-grid">
+            <DecadeRatingsTile data={decadeRatings} />
+            <RewatchAnalysisTile mostRewatched={mostRewatched} rewatchRatio={rewatchRatio} />
+            <TopDirectorsTile data={topDirectors} status={enrichmentStatus} />
+        </div>
+        <div className="lists-grid">
+          <GoToRatingTile rating={goToRating.rating} count={goToRating.count} />
+          <StreakTile streak={longestStreak} />
+          <BingeWatchTile count={bingeWatchCount} />
+          <PrimeTimeTile year={primeTimeYear} />
         </div>
         <div className="chart-card">
           <HeatmapTile watchedDates={watchedDates} />
