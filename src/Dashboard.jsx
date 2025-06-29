@@ -17,6 +17,8 @@ import TopDirectorsTile from './TopDirectorsTile';
 import StreakTile from './StreakTile';
 import BingeWatchTile from './BingeWatchTile';
 import PrimeTimeTile from './PrimeTimeTile';
+import MostWatchedStarsTile from './MostWatchedStarsTile';
+import AllStarCastTile from './AllStarCastTile';
 
 // ── Parse “YYYY-MM-DD” as a local date (no off-by-one) ──
 const parseYMD = s => {
@@ -433,6 +435,62 @@ export default function Dashboard({ parsedData }) {
     return Math.round(average);
   }, [diary]);
 
+    const mostWatchedStars = useMemo(() => {
+    if (!enrichedData) return [];
+
+    const actorCounts = enrichedData.reduce((acc, movie) => {
+      if (movie.cast) {
+        movie.cast.forEach(actor => {
+          if (!acc[actor.name]) {
+            acc[actor.name] = { count: 0, profile_path: actor.profile_path };
+          }
+          acc[actor.name].count++;
+        });
+      }
+      return acc;
+    }, {});
+
+    return Object.entries(actorCounts)
+      .map(([name, data]) => ({ name, ...data }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10); // Top 10
+  }, [enrichedData]);
+
+  const allStarCast = useMemo(() => {
+    if (!enrichedData || !ratings || ratings.length === 0) return [];
+
+    // Create a map for quick rating lookups by film name
+    const ratingsMap = ratings.reduce((acc, rating) => {
+      acc[rating.Name] = parseFloat(rating.Rating);
+      return acc;
+    }, {});
+
+    const actorRatings = enrichedData.reduce((acc, movie) => {
+      const movieRating = ratingsMap[movie.Name];
+      if (movie.cast && movieRating) {
+        movie.cast.forEach(actor => {
+          if (!acc[actor.name]) {
+            acc[actor.name] = { ratings: [], profile_path: actor.profile_path };
+          }
+          acc[actor.name].ratings.push(movieRating);
+        });
+      }
+      return acc;
+    }, {});
+
+    const MIN_FILM_COUNT = 3; // Set a threshold
+    return Object.entries(actorRatings)
+      .filter(([, data]) => data.ratings.length >= MIN_FILM_COUNT)
+      .map(([name, data]) => ({
+        name,
+        profile_path: data.profile_path,
+        avgRating: data.ratings.reduce((sum, r) => sum + r, 0) / data.ratings.length,
+        filmCount: data.ratings.length,
+      }))
+      .sort((a, b) => b.avgRating - a.avgRating)
+      .slice(0, 5); // Top 5
+  }, [enrichedData, ratings]);
+
 
   useEffect(() => {
     const fetchEnrichedData = async () => {
@@ -595,6 +653,10 @@ export default function Dashboard({ parsedData }) {
               </BarChart>
             </ResponsiveContainer>
           </div>
+        </div>
+        <div className="lists-grid">
+            <MostWatchedStarsTile data={mostWatchedStars} status={enrichmentStatus} />
+            <AllStarCastTile data={allStarCast} status={enrichmentStatus} />
         </div>
         <div className="lists-grid">
             <DecadeRatingsTile data={decadeRatings} />
