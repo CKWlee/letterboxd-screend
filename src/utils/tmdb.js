@@ -29,18 +29,29 @@ export async function enrichMoviesWithTMDB(movies) {
     try {
       const tmdbId = await fetchTMDBId(movie.Name, movie.Year);
       if (!tmdbId) {
-        enriched.push({ ...movie, director: 'Unknown', genres: [] });
+        // Add cast and ensure all properties exist for consistency
+        enriched.push({ ...movie, director: 'Unknown', genres: [], cast: [] });
         continue;
       }
       const [details, credits] = await Promise.all([
         fetchMovieDetails(tmdbId),
         fetchMovieCredits(tmdbId)
       ]);
+
       const director = credits.crew?.find(person => person.job === 'Director')?.name || 'Unknown';
       const genres = details.genres?.map(g => g.name) || [];
-      enriched.push({ ...movie, director, genres });
+
+      // Extract the top 10 cast members
+      const cast = credits.cast?.slice(0, 10).map(actor => ({
+        name: actor.name,
+        profile_path: actor.profile_path,
+      })) || [];
+
+      // Add 'cast' to the object being pushed
+      enriched.push({ ...movie, director, genres, cast });
+
     } catch (err) {
-      enriched.push({ ...movie, director: 'Unknown', genres: [] });
+      enriched.push({ ...movie, director: 'Unknown', genres: [], cast: [] });
     }
     // Respect TMDB rate limits
     await new Promise(r => setTimeout(r, 250));
