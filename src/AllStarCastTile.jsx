@@ -1,3 +1,4 @@
+// src/AllStarCastTile.jsx
 import React from 'react';
 
 const placeholder = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"%3E%3Cpath fill="%23ccc" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/%3E%3C/svg%3E';
@@ -18,7 +19,8 @@ export default function AllStarCastTile({ data, status }) {
   return (
     <div className="list-card actor-tile">
       <h2>Your All-Star Cast</h2>
-      <p className="tile-subtitle">(Min. 3 rated films)</p>
+      {/* ** THE FIX IS HERE ** */}
+      <p className="tile-subtitle">(Excludes voice roles; min. 3 rated films)</p>
       <ol className="actor-list">
         {data.map((actor, index) => (
           <li key={index} className="actor-list-item">
