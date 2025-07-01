@@ -1,3 +1,4 @@
+// src/Dashboard.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -19,7 +20,7 @@ import BingeWatchTile from './BingeWatchTile';
 import PrimeTimeTile from './PrimeTimeTile';
 import MostWatchedStarsTile from './MostWatchedStarsTile';
 import AllStarCastTile from './AllStarCastTile';
-import WorldMapTile from './WorldMapTile';
+import GoogleGeoChart from './GoogleGeoChart';
 
 const parseYMD = s => {
   if (!s || typeof s !== 'string') return null;
@@ -186,21 +187,35 @@ export default function Dashboard({ parsedData }) {
   }, [validRatings, ratingField]);
     
   const averageLoggingLag = useMemo(() => {
-    const dateKey = diaryKeys.find(k => /^Date$/i.test(k));
-    if (!diary || diary.length === 0 || !dateKey || !watchedDateKey) return 0;
+    const loggedDateKey = diaryKeys.find(k => /^Date$/i.test(k));
+    const localWatchedDateKey = diaryKeys.find(k => /Watched Date/i.test(k));
+
+    if (!diary || diary.length === 0 || !loggedDateKey || !localWatchedDateKey) {
+      return 0;
+    }
+
     const lags = diary
       .map(entry => {
-        const loggedDate = parseYMD(entry[dateKey]);
-        const watchedDate = parseYMD(entry[watchedDateKey]);
-        if (!loggedDate || !watchedDate) return null;
+        const loggedDate = parseYMD(entry[loggedDateKey]);
+        const watchedDate = parseYMD(entry[localWatchedDateKey]);
+
+        if (!loggedDate || !watchedDate) {
+          return null;
+        }
+
         const differenceMs = loggedDate.getTime() - watchedDate.getTime();
-        return differenceMs / (1000 * 60 * 60 * 24);
+        return differenceMs >= 0 ? differenceMs / (1000 * 60 * 60 * 24) : null;
       })
-      .filter(lag => lag !== null && lag >= 0);
-    if (lags.length === 0) return 0;
+      .filter(lag => lag !== null);
+
+    if (lags.length === 0) {
+      return 0;
+    }
+
     const sumOfLags = lags.reduce((acc, lag) => acc + lag, 0);
     return sumOfLags / lags.length;
-  }, [diary, diaryKeys, watchedDateKey]);
+  }, [diary, diaryKeys]);
+
 
   const prolificMonth = useMemo(() => {
     if (!monthlyActivity || monthlyActivity.length === 0) {
@@ -214,9 +229,9 @@ export default function Dashboard({ parsedData }) {
   const busiestDay = useMemo(() => {
     if (!diary || diary.length === 0) return { day: 'N/A', count: 0 };
     const dayCounts = diary.reduce((acc, entry) => {
-        const watchedDate = parseYMD(entry[watchedDateKey]);
-        if (watchedDate) {
-            const day = watchedDate.toLocaleDateString('en-US', { weekday: 'long' });
+        const localWatchedDate = parseYMD(entry[watchedDateKey]);
+        if (localWatchedDate) {
+            const day = localWatchedDate.toLocaleDateString('en-US', { weekday: 'long' });
             acc[day] = (acc[day] || 0) + 1;
         }
         return acc;
@@ -448,38 +463,34 @@ export default function Dashboard({ parsedData }) {
     if (!enrichedData) return null;
 
     const counts = enrichedData.reduce((acc, movie) => {
-        if (movie.countries && Array.isArray(movie.countries)) {
-            movie.countries.forEach(countryCode => {
-                // THE FIX: Ensure countryCode is a non-empty string before processing
-                if (countryCode && typeof countryCode === 'string') {
-                    acc[countryCode] = (acc[countryCode] || 0) + 1;
-                }
-            });
-        }
-        return acc;
+      if (movie.countries && Array.isArray(movie.countries)) {
+        movie.countries.forEach(countryCode => {
+          acc[countryCode] = (acc[countryCode] || 0) + 1;
+        });
+      }
+      return acc;
     }, {});
-
-    const maxCount = Math.max(0, ...Object.values(counts));
-
+    
     const formattedCounts = {};
     for (const [key, value] of Object.entries(counts)) {
-        formattedCounts[key] = { count: value };
+      formattedCounts[key] = { count: value };
     }
-
-    return { counts: formattedCounts, maxCount };
+    
+    return { counts: formattedCounts };
   }, [enrichedData]);
 
-
+  // ** THE FIX IS HERE **
   useEffect(() => {
     const fetchEnrichedData = async () => {
       const watchedKeys = Object.keys(watched[0] || {});
-      const enrichmentFilmKey = watchedKeys.find(k => /Name/i.test(k)) || 'Name';
-      const enrichmentYearKey = watchedKeys.find(k => /Year/i.test(k)) || 'Year';
+      const enrichmentFilmKey = watchedKeys.find(k => /film|movie|title|name/i.test(k)) || 'Name';
+      const enrichmentYearKey = watchedKeys.find(k => /^year$/i.test(k) || /release.*year/i.test(k)) || 'Year';
 
       if (watched.length > 0 && enrichmentStatus === 'idle') {
         setEnrichmentStatus('loading');
         try {
           const enriched = await enrichMoviesWithTMDB(watched, setEnrichmentProgress, enrichmentFilmKey, enrichmentYearKey);
+          // Ensure the final data is set correctly after filtering in the util
           setEnrichedData(enriched);
           setEnrichmentStatus('success');
         } catch (error) {
@@ -583,7 +594,7 @@ export default function Dashboard({ parsedData }) {
           </div>
         </div>
         <div className="chart-card-full-row">
-            <WorldMapTile data={countryData} status={enrichmentStatus} progress={enrichmentProgress} />
+            <GoogleGeoChart data={countryData} status={enrichmentStatus} progress={enrichmentProgress} />
         </div>
         <div className="lists-grid">
           <div className="list-card">

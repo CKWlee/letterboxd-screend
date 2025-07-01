@@ -2,12 +2,11 @@
 
 const please_dont_copy_this = 'a68e2fa8912aacee771329a6e327b7b3';
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
+const SHORT_FILM_RUNTIME_THRESHOLD = 40; // Runtime in minutes
 
-// This function now checks if the API request was successful.
 async function fetchTMDBId(title, year) {
   const url = `${TMDB_BASE_URL}/search/movie?api_key=${please_dont_copy_this}&query=${encodeURIComponent(title)}&year=${year}`;
   const res = await fetch(url);
-  // THE FIX: Check for a successful HTTP response.
   if (!res.ok) {
     console.error(`TMDB search failed for "${title}": ${res.status} ${res.statusText}`);
     return null;
@@ -19,26 +18,22 @@ async function fetchTMDBId(title, year) {
   return null;
 }
 
-// This function also checks for a successful response.
 async function fetchMovieDetails(tmdbId) {
   const url = `${TMDB_BASE_URL}/movie/${tmdbId}?api_key=${please_dont_copy_this}`;
   const res = await fetch(url);
-  // THE FIX: Check for a successful HTTP response.
   if (!res.ok) {
     console.error(`TMDB details fetch failed for ID "${tmdbId}": ${res.status} ${res.statusText}`);
-    return {}; // Return an empty object on failure.
+    return {};
   }
   return await res.json();
 }
 
-// And this one too.
 async function fetchMovieCredits(tmdbId) {
   const url = `${TMDB_BASE_URL}/movie/${tmdbId}/credits?api_key=${please_dont_copy_this}`;
   const res = await fetch(url);
-  // THE FIX: Check for a successful HTTP response.
   if (!res.ok) {
     console.error(`TMDB credits fetch failed for ID "${tmdbId}": ${res.status} ${res.statusText}`);
-    return {}; // Return an empty object on failure.
+    return {};
   }
   return await res.json();
 }
@@ -56,29 +51,42 @@ export async function enrichMoviesWithTMDB(movies, onProgress, filmKey, yearKey)
         const year = movie[yearKey];
 
         if (!title || !year) {
-            return { ...movie, director: 'Unknown', genres: [], cast: [], countries: [] };
+            return null;
         }
 
         const tmdbId = await fetchTMDBId(title, year);
         if (!tmdbId) {
-          return { ...movie, director: 'Unknown', genres: [], cast: [], countries: [] };
+          return null;
         }
         
-        // With the new error handling, `details` and `credits` might be empty objects.
         const [details, credits] = await Promise.all([
           fetchMovieDetails(tmdbId),
           fetchMovieCredits(tmdbId)
         ]);
+
+        // ** THE FIX IS HERE **
+        // If the runtime is below the threshold, exclude it from the results.
+        if (details.runtime && details.runtime < SHORT_FILM_RUNTIME_THRESHOLD) {
+          console.log(`Excluding short film: ${title} (${details.runtime} mins)`);
+          return null;
+        }
         
         const director = credits.crew?.find(p => p.job === 'Director')?.name || 'Unknown';
         const genres = details.genres?.map(g => g.name) || [];
-        const cast = credits.cast?.slice(0, 10).map(a => ({ name: a.name, profile_path: a.profile_path })) || [];
+        
+        const cast = credits.cast
+          ?.filter(actor => 
+            actor.known_for_department === 'Acting' && 
+            !actor.character.toLowerCase().includes('(voice)')
+          )
+          .map(a => ({ name: a.name, profile_path: a.profile_path })) || [];
+
         const countries = details.production_countries?.map(c => c.iso_3166_1) || [];
 
         return { ...movie, director, genres, cast, countries };
       } catch (err) {
         console.error(`Failed to enrich movie: ${movie[filmKey]}. Reason:`, err);
-        return { ...movie, director: 'Unknown', genres: [], cast: [], countries: [] };
+        return null; // Exclude movies that cause an error
       }
     });
 
@@ -93,5 +101,6 @@ export async function enrichMoviesWithTMDB(movies, onProgress, filmKey, yearKey)
     }
   }
 
-  return enriched;
+  // Filter out any null values (short films or errors) from the final array
+  return enriched.filter(Boolean);
 }
