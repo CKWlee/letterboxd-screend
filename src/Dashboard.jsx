@@ -8,7 +8,7 @@ import SentimentTile from './SentimentTile';
 import HeatmapTile from './HeatmapTile';
 import FavoritesTile from './FavoritesTile';
 import LoggingLagTile from './LoggingLagTile';
-import RatingChangeTile from './RatingChangeTile'; // Import the new tile
+import RatingChangeTile from './RatingChangeTile';
 import WordCloudD3 from './WordCloudD3';
 import DecadeRatingsTile from './DecadeRatingsTile';
 import GoToRatingTile from './GoToRatingTile';
@@ -19,8 +19,8 @@ import BingeWatchTile from './BingeWatchTile';
 import PrimeTimeTile from './PrimeTimeTile';
 import MostWatchedStarsTile from './MostWatchedStarsTile';
 import AllStarCastTile from './AllStarCastTile';
+import WorldMapTile from './WorldMapTile';
 
-// ── Parse “YYYY-MM-DD” as a local date (no off-by-one) ──
 const parseYMD = s => {
   if (!s || typeof s !== 'string') return null;
   const parts = String(s).split('-').map(n => parseInt(n, 10));
@@ -29,7 +29,6 @@ const parseYMD = s => {
   return new Date(y, m - 1, d);
 };
 
-// Trimmed list: core cinematic roles & popular amateur review terms
 const CINEMATIC_TERMS = [
     'story','characters','plot','dialogue','scene','tone',
     'camera','cinematography','director','acting','performance','cast',
@@ -60,19 +59,16 @@ const CINEMATIC_TERMS = [
     'pacing','rhythm','flow','continuity','cut','transition','montage'
 ];
 
-// Chart color palettes
 const COLORS = ['#0088FE','#00C49F','#FFBB28','#FF8042','#8884d8','#82ca9d','#ffc658'];
 const PIE_COLORS = ['#3366CC','#DC3912','#FF9900','#109618','#990099','#3B3EAC','#0099C6','#DD4477','#66AA00'];
 
 export default function Dashboard({ parsedData }) {
-  // Check for required CSVs
   const required = ['diary','watched','ratings','reviews'];
   const provided = Object.keys(parsedData).map(k => k.toLowerCase());
   const missing  = required.filter(k => !provided.includes(k));
-  // State for the data fetched from TMDB
   const [enrichedData, setEnrichedData] = useState(null);
-  // State to track the API call status ('idle', 'loading', 'success', 'error')
   const [enrichmentStatus, setEnrichmentStatus] = useState('idle');
+  const [enrichmentProgress, setEnrichmentProgress] = useState(0);
 
   if (missing.length) {
     return (
@@ -89,7 +85,6 @@ export default function Dashboard({ parsedData }) {
     );
   }
 
-  // Normalize and extract data
   const csvMap = {};
   Object.entries(parsedData).forEach(([k,v]) => {
     csvMap[k.toLowerCase()] = v;
@@ -101,21 +96,19 @@ export default function Dashboard({ parsedData }) {
   const likesKey  = Object.keys(parsedData).find(k => /likes[\\/_]films$/i.test(k));
   const favorites = likesKey ? parsedData[likesKey] : [];
 
-  // Detect columns
   const diaryKeys  = Object.keys(diary[0] || {});
   const filmKey = diaryKeys.find(k => /film|movie|title|name/i.test(k)) || 'Name';
+  const yearKey = diaryKeys.find(k=>/^year$/i.test(k)||/release.*year/i.test(k)) || 'Year';
   const rewatchKey = diaryKeys.find(k=>/rewatch/i.test(k));
-  const watchedDateKey = Object.keys(watched[0] || {}).find(k => /date/i.test(k)) || 'Date';
+  const watchedDateKey = diaryKeys.find(k => /date/i.test(k)) || 'Watched Date';
   const watchedDates = watched.map(row => row[watchedDateKey]).filter(Boolean);
 
-  // Core stats
   const totalWatched   = watched.length;
   const rewatchedCount = rewatchKey
     ? new Set(diary.filter(d=>d[rewatchKey]?.toLowerCase()==='yes').map(d=>d[filmKey])).size
     : 0;
   const lovedCount     = favorites.length;
 
-  // Ratings & reviews
   const ratingField    = Object.keys(ratings[0] || {}).find(k=>/rating/i.test(k));
   const validRatings   = ratingField ? ratings.filter(r=>r[ratingField]) : [];
   const totalRated     = validRatings.length;
@@ -124,12 +117,11 @@ export default function Dashboard({ parsedData }) {
     : 0;
   const reviewsWritten = reviews.length;
 
-  // Date range + first/last movie
   const sorted = [...diary]
-    .filter(d=>d['Watched Date'] && parseYMD(d['Watched Date']))
-    .sort((a,b)=>parseYMD(a['Watched Date']) - parseYMD(b['Watched Date']));
-  const firstWatch = sorted.length ? parseYMD(sorted[0]['Watched Date']).toLocaleDateString() : '';
-  const lastWatch  = sorted.length ? parseYMD(sorted[sorted.length-1]['Watched Date']).toLocaleDateString() : '';
+    .filter(d=>d[watchedDateKey] && parseYMD(d[watchedDateKey]))
+    .sort((a,b)=>parseYMD(a[watchedDateKey]) - parseYMD(b[watchedDateKey]));
+  const firstWatch = sorted.length ? parseYMD(sorted[0][watchedDateKey]).toLocaleDateString() : '';
+  const lastWatch  = sorted.length ? parseYMD(sorted[sorted.length-1][watchedDateKey]).toLocaleDateString() : '';
   const firstMovie = sorted.length ? sorted[0][filmKey] : '';
   const lastMovie  = sorted.length ? sorted[sorted.length-1][filmKey] : '';
 
@@ -146,7 +138,7 @@ export default function Dashboard({ parsedData }) {
     const favorites = ratings.filter(r => parseFloat(r[ratingField]) === maxRating);
     const stinkers = ratings.filter(r => parseFloat(r[ratingField]) === minRating);
     return { favorites, stinkers, minRating, maxRating };
-  }, [ratings, ratingField]);
+  }, [ratings, ratingField, filmKey]);
 
   const monthlyActivity = useMemo(() => {
     const counts = {};
@@ -165,9 +157,9 @@ export default function Dashboard({ parsedData }) {
 
   const monthlyRatings = useMemo(()=>{
     const sums={}, cnt={};
-    const localRatingField = Object.keys(diary[0] || {}).find(k=>/rating/i.test(k));
+    const localRatingField = diaryKeys.find(k=>/rating/i.test(k));
     diary.forEach(d=>{
-      const dt = parseYMD(d['Watched Date']);
+      const dt = parseYMD(d[watchedDateKey]);
       const rv = localRatingField ? parseFloat(d[localRatingField]) : NaN;
       if (dt && !isNaN(rv)) {
         const lbl = dt.toLocaleString('default',{month:'short',year:'numeric'});
@@ -177,7 +169,7 @@ export default function Dashboard({ parsedData }) {
     });
     const sortedEntries = Object.entries(sums).sort((a,b) => new Date(a[0]) - new Date(b[0]));
     return sortedEntries.map(([lbl, sum]) => ({ label: lbl, rating: sum/cnt[lbl] }));
-  }, [diary]);
+  }, [diary, watchedDateKey]);
 
   const ratingDistribution = useMemo(()=>{
     const dist={};
@@ -194,12 +186,12 @@ export default function Dashboard({ parsedData }) {
   }, [validRatings, ratingField]);
     
   const averageLoggingLag = useMemo(() => {
-    if (!diary || diary.length === 0) return 0;
+    const dateKey = diaryKeys.find(k => /^Date$/i.test(k));
+    if (!diary || diary.length === 0 || !dateKey || !watchedDateKey) return 0;
     const lags = diary
       .map(entry => {
-        if (!entry['Date'] || !entry['Watched Date']) return null;
-        const loggedDate = parseYMD(entry['Date']);
-        const watchedDate = parseYMD(entry['Watched Date']);
+        const loggedDate = parseYMD(entry[dateKey]);
+        const watchedDate = parseYMD(entry[watchedDateKey]);
         if (!loggedDate || !watchedDate) return null;
         const differenceMs = loggedDate.getTime() - watchedDate.getTime();
         return differenceMs / (1000 * 60 * 60 * 24);
@@ -208,7 +200,7 @@ export default function Dashboard({ parsedData }) {
     if (lags.length === 0) return 0;
     const sumOfLags = lags.reduce((acc, lag) => acc + lag, 0);
     return sumOfLags / lags.length;
-  }, [diary]);
+  }, [diary, diaryKeys, watchedDateKey]);
 
   const prolificMonth = useMemo(() => {
     if (!monthlyActivity || monthlyActivity.length === 0) {
@@ -222,7 +214,7 @@ export default function Dashboard({ parsedData }) {
   const busiestDay = useMemo(() => {
     if (!diary || diary.length === 0) return { day: 'N/A', count: 0 };
     const dayCounts = diary.reduce((acc, entry) => {
-        const watchedDate = parseYMD(entry['Watched Date']);
+        const watchedDate = parseYMD(entry[watchedDateKey]);
         if (watchedDate) {
             const day = watchedDate.toLocaleDateString('en-US', { weekday: 'long' });
             acc[day] = (acc[day] || 0) + 1;
@@ -232,15 +224,17 @@ export default function Dashboard({ parsedData }) {
     if (Object.keys(dayCounts).length === 0) return { day: 'N/A', count: 0 };
     const topDay = Object.entries(dayCounts).reduce((max, current) => current[1] > max[1] ? current : max);
     return { day: topDay[0], count: topDay[1] };
-  }, [diary]);
+  }, [diary, watchedDateKey]);
   
   const biggestRatingChange = useMemo(() => {
-    if (!diary || diary.length === 0) return null;
+    const ratingKey = diaryKeys.find(k => /rating/i.test(k));
+    const dateKey = diaryKeys.find(k => /^Date$/i.test(k));
+    if (!diary || diary.length === 0 || !ratingKey || !dateKey) return null;
 
     const filmRatings = diary.reduce((acc, entry) => {
       const name = entry[filmKey];
-      const rating = parseFloat(entry['Rating']);
-      const date = parseYMD(entry['Date']);
+      const rating = parseFloat(entry[ratingKey]);
+      const date = parseYMD(entry[dateKey]);
 
       if (name && !isNaN(rating) && date) {
         if (!acc[name]) {
@@ -262,23 +256,18 @@ export default function Dashboard({ parsedData }) {
         const change = Math.abs(newEntry.rating - oldEntry.rating);
 
         if (change > maxChange.change) {
-          maxChange = {
-            name,
-            oldRating: oldEntry.rating,
-            newRating: newEntry.rating,
-            change,
-          };
+          maxChange = { name, oldRating: oldEntry.rating, newRating: newEntry.rating, change };
         }
       }
     }
     return maxChange.change > 0 ? maxChange : null;
-  }, [diary, filmKey]);
+  }, [diary, filmKey, diaryKeys]);
 
-  const yearKey = Object.keys(watched[0] || {}).find(k=>/^year$/i.test(k)||/release.*year/i.test(k));
   const yearsData = useMemo(()=>{
-    if (!yearKey) return [];
+    const watchedYearKey = Object.keys(watched[0] || {}).find(k=>/^year$/i.test(k)||/release.*year/i.test(k));
+    if (!watchedYearKey) return [];
     const counts = watched.reduce((m,mv)=>{
-      const y = parseInt(mv[yearKey],10);
+      const y = parseInt(mv[watchedYearKey],10);
       if (!isNaN(y)) m[y] = (m[y]||0) + 1;
       return m;
     }, {});
@@ -287,16 +276,14 @@ export default function Dashboard({ parsedData }) {
     const minY = Math.min(...yrs);
     const maxY = Math.max(...yrs);
     return Array.from({length:maxY-minY+1},(_,i)=>({ name: String(minY+i), count: counts[minY+i]||0 }));
-  }, [watched, yearKey]);
-
-  // Inside your Dashboard.jsx component
+  }, [watched]);
 
   const decadeRatings = useMemo(() => {
-    if (!ratings || ratings.length === 0) return [];
+    if (!ratings || ratings.length === 0 || !yearKey || !ratingField) return [];
 
     const ratingsByDecade = ratings.reduce((acc, film) => {
-      const year = parseInt(film.Year, 10);
-      const ratingVal = parseFloat(film.Rating);
+      const year = parseInt(film[yearKey], 10);
+      const ratingVal = parseFloat(film[ratingField]);
       if (isNaN(year) || isNaN(ratingVal)) return acc;
 
       const decade = Math.floor(year / 10) * 10;
@@ -315,86 +302,64 @@ export default function Dashboard({ parsedData }) {
         count: data.ratings.length,
       }))
       .sort((a, b) => a.decade.localeCompare(b.decade));
-  }, [ratings]);
+  }, [ratings, yearKey, ratingField]);
 
   const goToRating = useMemo(() => {
     if (!validRatings || validRatings.length === 0) return { rating: 'N/A', count: 0 };
-
     const ratingCounts = validRatings.reduce((acc, r) => {
       const key = parseFloat(r[ratingField]).toFixed(1);
       acc[key] = (acc[key] || 0) + 1;
       return acc;
     }, {});
-
     if (Object.keys(ratingCounts).length === 0) return { rating: 'N/A', count: 0 };
-
-    const topRating = Object.entries(ratingCounts).reduce((max, current) =>
-      current[1] > max[1] ? current : max
-    );
-
+    const topRating = Object.entries(ratingCounts).reduce((max, current) => current[1] > max[1] ? current : max);
     return { rating: topRating[0], count: topRating[1] };
   }, [validRatings, ratingField]);
 
-    const mostRewatched = useMemo(() => {
-    if (!diary || diary.length === 0) return { name: null, count: 0 };
-    // Filter for entries that are explicitly marked as rewatches
-    const rewatches = diary.filter(d => d.Rewatch?.toLowerCase() === 'yes');
+  const mostRewatched = useMemo(() => {
+    if (!diary || diary.length === 0 || !rewatchKey) return { name: 'No rewatches yet!', count: 1 };
+    const rewatches = diary.filter(d => d[rewatchKey]?.toLowerCase() === 'yes');
     if (rewatches.length === 0) return { name: 'No rewatches yet!', count: 1 };
 
     const counts = rewatches.reduce((acc, film) => {
-      acc[film.Name] = (acc[film.Name] || 1) + 1; // Start count at 1 for first rewatch, add subsequent
+      acc[film[filmKey]] = (acc[film[filmKey]] || 1) + 1;
       return acc;
     }, {});
 
-    const topFilm = Object.entries(counts).reduce((max, current) =>
-      current[1] > max[1] ? current : max
-    , [null, 0]);
-
+    const topFilm = Object.entries(counts).reduce((max, current) => current[1] > max[1] ? current : max, [null, 0]);
     return { name: topFilm[0], count: topFilm[1] };
-  }, [diary]);
-
+  }, [diary, rewatchKey, filmKey]);
 
   const rewatchRatio = useMemo(() => {
     const total = diary.length;
     if (total === 0) return { rewatches: 0, new: 0 };
-
-    const rewatchCount = diary.filter(d => d.Rewatch?.toLowerCase() === 'yes').length;
-    return {
-      rewatches: rewatchCount,
-      new: total - rewatchCount,
-    };
-  }, [diary]);
+    const rewatchCount = rewatchKey ? diary.filter(d => d[rewatchKey]?.toLowerCase() === 'yes').length : 0;
+    return { rewatches: rewatchCount, new: total - rewatchCount };
+  }, [diary, rewatchKey]);
 
   const topDirectors = useMemo(() => {
     if (!enrichedData) return [];
-
     const directorCounts = enrichedData.reduce((acc, movie) => {
       if (movie.director && movie.director !== 'Unknown') {
         acc[movie.director] = (acc[movie.director] || 0) + 1;
       }
       return acc;
     }, {});
-
     return Object.entries(directorCounts)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 10); // Get the top 10
-  }, [enrichedData]); // This calculation depends on the fetched data
+      .slice(0, 10);
+  }, [enrichedData]);
 
   const longestStreak = useMemo(() => {
     if (!diary || diary.length === 0) return 0;
-
-    // Get unique, sorted dates
-    const uniqueDates = [...new Set(diary.map(d => d['Watched Date']))]
-      .map(s => new Date(s))
-      .filter(d => !isNaN(d.getTime()))
+    const uniqueDates = [...new Set(diary.map(d => d[watchedDateKey]))]
+      .map(s => parseYMD(s))
+      .filter(d => d && !isNaN(d.getTime()))
       .sort((a, b) => a - b);
-
-    if (uniqueDates.length === 0) return 0;
-
+    if (uniqueDates.length < 2) return uniqueDates.length;
     let maxStreak = 1;
     let currentStreak = 1;
-
     for (let i = 1; i < uniqueDates.length; i++) {
       const diff = (uniqueDates[i] - uniqueDates[i - 1]) / (1000 * 60 * 60 * 24);
       if (diff === 1) {
@@ -404,40 +369,33 @@ export default function Dashboard({ parsedData }) {
         currentStreak = 1;
       }
     }
-    // Final check for a streak that goes to the very end
     maxStreak = Math.max(maxStreak, currentStreak);
-
     return maxStreak;
-  }, [diary]);
+  }, [diary, watchedDateKey]);
 
   const bingeWatchCount = useMemo(() => {
     if (!diary || diary.length === 0) return 0;
-
     const countsByDate = diary.reduce((acc, entry) => {
-      const date = entry['Watched Date'];
+      const date = entry[watchedDateKey];
       if (date) {
         acc[date] = (acc[date] || 0) + 1;
       }
       return acc;
     }, {});
-
     const maxCount = Math.max(0, ...Object.values(countsByDate));
     return maxCount;
-  }, [diary]);
+  }, [diary, watchedDateKey]);
 
   const primeTimeYear = useMemo(() => {
-    if (!diary || diary.length === 0) return 'N/A';
-
-    const years = diary.map(film => parseInt(film.Year, 10)).filter(year => !isNaN(year));
+    if (!diary || diary.length === 0 || !yearKey) return 'N/A';
+    const years = diary.map(film => parseInt(film[yearKey], 10)).filter(year => !isNaN(year));
     if (years.length === 0) return 'N/A';
-
     const average = years.reduce((sum, year) => sum + year, 0) / years.length;
     return Math.round(average);
-  }, [diary]);
+  }, [diary, yearKey]);
 
-    const mostWatchedStars = useMemo(() => {
+  const mostWatchedStars = useMemo(() => {
     if (!enrichedData) return [];
-
     const actorCounts = enrichedData.reduce((acc, movie) => {
       if (movie.cast) {
         movie.cast.forEach(actor => {
@@ -449,24 +407,20 @@ export default function Dashboard({ parsedData }) {
       }
       return acc;
     }, {});
-
     return Object.entries(actorCounts)
       .map(([name, data]) => ({ name, ...data }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 10); // Top 10
+      .slice(0, 10);
   }, [enrichedData]);
 
   const allStarCast = useMemo(() => {
-    if (!enrichedData || !ratings || ratings.length === 0) return [];
-
-    // Create a map for quick rating lookups by film name
+    if (!enrichedData || !ratings || ratings.length === 0 || !ratingField) return [];
     const ratingsMap = ratings.reduce((acc, rating) => {
-      acc[rating.Name] = parseFloat(rating.Rating);
+      acc[rating[filmKey]] = parseFloat(rating[ratingField]);
       return acc;
     }, {});
-
     const actorRatings = enrichedData.reduce((acc, movie) => {
-      const movieRating = ratingsMap[movie.Name];
+      const movieRating = ratingsMap[movie[filmKey]];
       if (movie.cast && movieRating) {
         movie.cast.forEach(actor => {
           if (!acc[actor.name]) {
@@ -477,8 +431,7 @@ export default function Dashboard({ parsedData }) {
       }
       return acc;
     }, {});
-
-    const MIN_FILM_COUNT = 3; // Set a threshold
+    const MIN_FILM_COUNT = 3;
     return Object.entries(actorRatings)
       .filter(([, data]) => data.ratings.length >= MIN_FILM_COUNT)
       .map(([name, data]) => ({
@@ -488,19 +441,45 @@ export default function Dashboard({ parsedData }) {
         filmCount: data.ratings.length,
       }))
       .sort((a, b) => b.avgRating - a.avgRating)
-      .slice(0, 5); // Top 5
-  }, [enrichedData, ratings]);
+      .slice(0, 5);
+  }, [enrichedData, ratings, ratingField, filmKey]);
+
+  const countryData = useMemo(() => {
+    if (!enrichedData) return null;
+
+    const counts = enrichedData.reduce((acc, movie) => {
+        if (movie.countries && Array.isArray(movie.countries)) {
+            movie.countries.forEach(countryCode => {
+                // THE FIX: Ensure countryCode is a non-empty string before processing
+                if (countryCode && typeof countryCode === 'string') {
+                    acc[countryCode] = (acc[countryCode] || 0) + 1;
+                }
+            });
+        }
+        return acc;
+    }, {});
+
+    const maxCount = Math.max(0, ...Object.values(counts));
+
+    const formattedCounts = {};
+    for (const [key, value] of Object.entries(counts)) {
+        formattedCounts[key] = { count: value };
+    }
+
+    return { counts: formattedCounts, maxCount };
+  }, [enrichedData]);
 
 
   useEffect(() => {
     const fetchEnrichedData = async () => {
-      // Only run if we have diary data and haven't already fetched
-      if (diary.length > 0 && enrichmentStatus === 'idle') {
+      const watchedKeys = Object.keys(watched[0] || {});
+      const enrichmentFilmKey = watchedKeys.find(k => /Name/i.test(k)) || 'Name';
+      const enrichmentYearKey = watchedKeys.find(k => /Year/i.test(k)) || 'Year';
+
+      if (watched.length > 0 && enrichmentStatus === 'idle') {
         setEnrichmentStatus('loading');
         try {
-          // We'll just enrich a slice of the diary to respect API rate limits and for speed
-          const moviesToEnrich = diary.slice(0, 50); // Enrich the first 50 films
-          const enriched = await enrichMoviesWithTMDB(moviesToEnrich);
+          const enriched = await enrichMoviesWithTMDB(watched, setEnrichmentProgress, enrichmentFilmKey, enrichmentYearKey);
           setEnrichedData(enriched);
           setEnrichmentStatus('success');
         } catch (error) {
@@ -511,7 +490,7 @@ export default function Dashboard({ parsedData }) {
     };
 
     fetchEnrichedData();
-  }, [diary, enrichmentStatus]);
+  }, [watched, enrichmentStatus]);
 
   return (
     <div className="dashboard">
@@ -603,7 +582,9 @@ export default function Dashboard({ parsedData }) {
             <p>{`${lastWatch} — ${lastMovie}`}</p>
           </div>
         </div>
-
+        <div className="chart-card-full-row">
+            <WorldMapTile data={countryData} status={enrichmentStatus} progress={enrichmentProgress} />
+        </div>
         <div className="lists-grid">
           <div className="list-card">
             <h2>Word Cloud</h2>
