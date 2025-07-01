@@ -40,7 +40,7 @@ function App() {
           });
         });
       }
-
+      console.log('Parsed CSV data:', results);
       setParsedData(results);
       setStage('dashboard');
     } catch (err) {
