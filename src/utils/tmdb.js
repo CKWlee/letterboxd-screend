@@ -1,11 +1,13 @@
 // src/utils/tmdb.js
 
-const please_dont_copy_this = 'REDACTED_API_KEY';
+// API key is loaded from environment variable (set in .env file)
+// In Vite, env vars prefixed with VITE_ are exposed to client code
+const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY;
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 const SHORT_FILM_RUNTIME_THRESHOLD = 40; // Runtime in minutes
 
 async function fetchTMDBId(title, year) {
-  const url = `${TMDB_BASE_URL}/search/movie?api_key=${please_dont_copy_this}&query=${encodeURIComponent(title)}&year=${year}`;
+  const url = `${TMDB_BASE_URL}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(title)}&year=${year}`;
   const res = await fetch(url);
   if (!res.ok) {
     console.error(`TMDB search failed for "${title}": ${res.status} ${res.statusText}`);
@@ -19,7 +21,7 @@ async function fetchTMDBId(title, year) {
 }
 
 async function fetchMovieDetails(tmdbId) {
-  const url = `${TMDB_BASE_URL}/movie/${tmdbId}?api_key=${please_dont_copy_this}`;
+  const url = `${TMDB_BASE_URL}/movie/${tmdbId}?api_key=${TMDB_API_KEY}`;
   const res = await fetch(url);
   if (!res.ok) {
     console.error(`TMDB details fetch failed for ID "${tmdbId}": ${res.status} ${res.statusText}`);
@@ -29,7 +31,7 @@ async function fetchMovieDetails(tmdbId) {
 }
 
 async function fetchMovieCredits(tmdbId) {
-  const url = `${TMDB_BASE_URL}/movie/${tmdbId}/credits?api_key=${please_dont_copy_this}`;
+  const url = `${TMDB_BASE_URL}/movie/${tmdbId}/credits?api_key=${TMDB_API_KEY}`;
   const res = await fetch(url);
   if (!res.ok) {
     console.error(`TMDB credits fetch failed for ID "${tmdbId}": ${res.status} ${res.statusText}`);
