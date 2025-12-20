@@ -5,6 +5,8 @@ import {
   PieChart, Pie, Cell, LineChart, Line, Legend
 } from 'recharts';
 import { enrichMoviesWithTMDB } from './utils/tmdb';
+import { parseYMD } from './utils/dateUtils';
+import { COLORS, PIE_COLORS, CINEMATIC_TERMS } from './constants';
 import SentimentTile from './SentimentTile';
 import HeatmapTile from './HeatmapTile';
 import FavoritesTile from './FavoritesTile';
@@ -12,7 +14,6 @@ import LoggingLagTile from './LoggingLagTile';
 import RatingChangeTile from './RatingChangeTile';
 import WordCloudD3 from './WordCloudD3';
 import DecadeRatingsTile from './DecadeRatingsTile';
-import GoToRatingTile from './GoToRatingTile';
 import RewatchAnalysisTile from './RewatchAnalysisTile';
 import TopDirectorsTile from './TopDirectorsTile';
 import StreakTile from './StreakTile';
@@ -21,47 +22,6 @@ import PrimeTimeTile from './PrimeTimeTile';
 import MostWatchedStarsTile from './MostWatchedStarsTile';
 import AllStarCastTile from './AllStarCastTile';
 import GoogleGeoChart from './GoogleGeoChart';
-
-const parseYMD = s => {
-  if (!s || typeof s !== 'string') return null;
-  const parts = String(s).split('-').map(n => parseInt(n, 10));
-  if (parts.length !== 3 || parts.some(isNaN)) return null;
-  const [y, m, d] = parts;
-  return new Date(y, m - 1, d);
-};
-
-const CINEMATIC_TERMS = [
-    'story','characters','plot','dialogue','scene','tone',
-    'camera','cinematography','director','acting','performance','cast',
-    'visuals','music','soundtrack','score','script','emotional',
-    'powerful','beautiful','moving','captivating','riveting','heartfelt',
-    'masterpiece','brilliant','amazing','fantastic','incredible','outstanding',
-    'excellent','narrative','eccentric','weird','quirky','unique',
-    'original','refreshing','engaging','focus','chemistry','audience',
-    'screen','different','experience','impressive','intense','thrilling',
-    'suspenseful','gripping','entertaining','funny','humor','comedy',
-    'drama','action','thriller','animation','fantasy','horror',
-    'romance','adventure','sci-fi','documentary','biography','historical',
-    'musical','mystery','crime','family','sports','war','western',
-    'superhero','comic','adaptation','comedic','sequel','prequel',
-    'remake','reboot','franchise','series','trilogy','quadrilogy',
-    'cinematic universe','blockbuster','indie','cult','classic','underrated',
-    'overrated','hilarious','binge-worthy','must-watch','cinema','film',
-    'movie','flick','picture','show','favorite','recommend','watchlist',
-    'rewatch','revisit','nostalgia','timeless','evergreen','iconic',
-    'love','actor','actress','character','role','casting','ensemble',
-    'dynamic','relationship','development','arc','journey','growth',
-    'transformation','redemption','conflict','resolution','theme','message',
-    'moral','lesson','symbolism','metaphor','allegory','subtext','motif',
-    'imagery','visual','aesthetic','style','mood','atmosphere','setting',
-    'location','world-building','universe','mythology','lore','backstory',
-    'history','context','subculture','sequence','shot','angle','framing',
-    'composition','lighting','color','contrast','depth','movement','editing',
-    'pacing','rhythm','flow','continuity','cut','transition','montage'
-];
-
-const COLORS = ['#0088FE','#00C49F','#FFBB28','#FF8042','#8884d8','#82ca9d','#ffc658'];
-const PIE_COLORS = ['#3366CC','#DC3912','#FF9900','#109618','#990099','#3B3EAC','#0099C6','#DD4477','#66AA00'];
 
 export default function Dashboard({ parsedData }) {
   const required = ['diary','watched','ratings','reviews'];
@@ -319,18 +279,6 @@ export default function Dashboard({ parsedData }) {
       .sort((a, b) => a.decade.localeCompare(b.decade));
   }, [ratings, yearKey, ratingField]);
 
-  const goToRating = useMemo(() => {
-    if (!validRatings || validRatings.length === 0) return { rating: 'N/A', count: 0 };
-    const ratingCounts = validRatings.reduce((acc, r) => {
-      const key = parseFloat(r[ratingField]).toFixed(1);
-      acc[key] = (acc[key] || 0) + 1;
-      return acc;
-    }, {});
-    if (Object.keys(ratingCounts).length === 0) return { rating: 'N/A', count: 0 };
-    const topRating = Object.entries(ratingCounts).reduce((max, current) => current[1] > max[1] ? current : max);
-    return { rating: topRating[0], count: topRating[1] };
-  }, [validRatings, ratingField]);
-
   const mostRewatched = useMemo(() => {
     if (!diary || diary.length === 0 || !rewatchKey) return { name: 'No rewatches yet!', count: 1 };
     const rewatches = diary.filter(d => d[rewatchKey]?.toLowerCase() === 'yes');
@@ -479,7 +427,41 @@ export default function Dashboard({ parsedData }) {
     return { counts: formattedCounts };
   }, [enrichedData]);
 
-  // ** THE FIX IS HERE **
+  // Word cloud data - memoized to prevent recalculation on every render
+  const wordCloudData = useMemo(() => {
+    const commentKey = diaryKeys.find(k => /comment|entry|notes|text/i.test(k));
+    const reviewKey = Object.keys(reviews[0] || {}).find(k => /review|text/i.test(k));
+    
+    const texts = [
+      ...(diary.map(d => (commentKey && d[commentKey]) || '')),
+      ...(reviews.map(r => (reviewKey && r[reviewKey]) || ''))
+    ].join(' ')
+      .toLowerCase()
+      .replace(/[^a-z\s]/g, ' ')
+      .split(/\s+/)
+      .filter(Boolean);
+    
+    const freq = texts.reduce((m, w) => { 
+      m[w] = (m[w] || 0) + 1; 
+      return m; 
+    }, {});
+    
+    // First try to find cinematic terms
+    let data = CINEMATIC_TERMS.filter(t => freq[t]).map(t => ({ text: t, value: freq[t] }));
+    
+    // Fallback to most frequent words if no cinematic terms found
+    if (!data.length) {
+      data = Object.entries(freq)
+        .filter(([w]) => w.length > 3)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 30)
+        .map(([text, value]) => ({ text, value }));
+    }
+    
+    return data;
+  }, [diary, reviews, diaryKeys]);
+
+  // TMDB enrichment effect
   useEffect(() => {
     const fetchEnrichedData = async () => {
       const watchedKeys = Object.keys(watched[0] || {});
@@ -564,23 +546,23 @@ export default function Dashboard({ parsedData }) {
           <SentimentTile diary={diary} reviews={reviews} />
         </div>
 
-        <div className="stats-grid">
-            <LoggingLagTile averageLag={averageLoggingLag} />
-            <div className="stat-card">
-              <h3>Most Prolific Month</h3>
-              <div className="prolific-month-value">
-                <p className="stat-value">{prolificMonth.month}</p>
-                <p className="prolific-month-count">{prolificMonth.count} films</p>
-              </div>
+        {/* Secondary Stats */}
+        <div className="stats-grid secondary-stats">
+          <div className="stat-card">
+            <h3>Most Prolific Month</h3>
+            <div className="prolific-month-value">
+              <p className="stat-value">{prolificMonth.month}</p>
+              <p className="prolific-month-count">{prolificMonth.count} films</p>
             </div>
-            <div className="stat-card">
-              <h3>Your Busiest Day</h3>
-              <div className="prolific-month-value">
-                <p className="stat-value">{busiestDay.day}</p>
-                <p className="prolific-month-count">{busiestDay.count} films watched</p>
-              </div>
+          </div>
+          <div className="stat-card">
+            <h3>Your Busiest Day</h3>
+            <div className="prolific-month-value">
+              <p className="stat-value">{busiestDay.day}</p>
+              <p className="prolific-month-count">{busiestDay.count} films watched</p>
             </div>
-            <RatingChangeTile changeInfo={biggestRatingChange} />
+          </div>
+          <RatingChangeTile changeInfo={biggestRatingChange} />
         </div>
 
         <div className="date-info">
@@ -593,76 +575,64 @@ export default function Dashboard({ parsedData }) {
             <p>{`${lastWatch} — ${lastMovie}`}</p>
           </div>
         </div>
+
+        {/* Activity Heatmap - Full Width */}
         <div className="chart-card-full-row">
-            <GoogleGeoChart data={countryData} status={enrichmentStatus} progress={enrichmentProgress} />
+          <HeatmapTile watchedDates={watchedDates} />
         </div>
-        <div className="lists-grid">
-          <div className="list-card">
-            <h2>Word Cloud</h2>
-            <WordCloudD3
-              data={(() => {
-                const commentKey = diaryKeys.find(k=>/comment|entry|notes|text/i.test(k));
-                const reviewKey  = Object.keys(reviews[0] || {}).find(k=>/review|text/i.test(k));
-                const texts = [
-                  ...(diary.map(d=>(commentKey && d[commentKey])||'')),
-                  ...(reviews.map(r=>(reviewKey && r[reviewKey])||''))
-                ].join(' ')
-                  .toLowerCase()
-                  .replace(/[^a-z\s]/g,' ')
-                  .split(/\s+/)
-                  .filter(Boolean);
-                const freq = texts.reduce((m,w)=>{ m[w]=(m[w]||0)+1; return m; }, {});
-                let data = CINEMATIC_TERMS.filter(t=>freq[t]).map(t=>({ text:t, value:freq[t] }));
-                if (!data.length) {
-                  data = Object.entries(freq)
-                    .filter(([w])=>w.length>3)
-                    .sort(([,a],[,b])=>b-a)
-                    .slice(0,30)
-                    .map(([text,value])=>({ text, value }));
-                }
-                return data;
-              })()}
-              width={400} height={220}
-            />
-            <div style={{ textAlign:'center', marginTop:'8px', fontStyle:'italic', fontSize:'0.9rem', color:'#5E35B1' }}>
-              • Font size & color darkness ∝ term frequency
-            </div>
-          </div>
-          <FavoritesTile
-              favorites={favoriteFilmsData.favorites}
-              stinkers={favoriteFilmsData.stinkers}
-              minRating={favoriteFilmsData.minRating}
-              maxRating={favoriteFilmsData.maxRating}
-            />
+
+        {/* Charts Row */}
+        <div className="charts-grid">
           <div className="chart-card">
             <h2>Films Watched by Year</h2>
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={yearsData}>
-                <XAxis dataKey="name" tickFormatter={year=> (parseInt(year,10)%10===0 ? year : '')} interval={0} tick={{fontSize:12}} />
-                <YAxis allowDecimals={false}/>
-                <Tooltip/>
-                <Bar dataKey="count" fill={COLORS[2]}/>
+                <XAxis dataKey="name" tickFormatter={year => (parseInt(year, 10) % 10 === 0 ? year : '')} interval={0} tick={{ fontSize: 12 }} />
+                <YAxis allowDecimals={false} />
+                <Tooltip />
+                <Bar dataKey="count" fill={COLORS[2]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
+          <DecadeRatingsTile data={decadeRatings} />
+          <RewatchAnalysisTile mostRewatched={mostRewatched} rewatchRatio={rewatchRatio} />
         </div>
+
+        {/* Word Cloud & Favorites */}
         <div className="lists-grid">
-            <MostWatchedStarsTile data={mostWatchedStars} status={enrichmentStatus} />
-            <AllStarCastTile data={allStarCast} status={enrichmentStatus} />
+          <div className="list-card word-cloud-card">
+            <h2>Word Cloud</h2>
+            <div className="word-cloud-container">
+              <WordCloudD3 data={wordCloudData} width={350} height={200} />
+            </div>
+            <p className="word-cloud-subtitle">Font size & color darkness ∝ term frequency</p>
+          </div>
+          <FavoritesTile
+            favorites={favoriteFilmsData.favorites}
+            stinkers={favoriteFilmsData.stinkers}
+            minRating={favoriteFilmsData.minRating}
+            maxRating={favoriteFilmsData.maxRating}
+          />
         </div>
-        <div className="lists-grid">
-            <DecadeRatingsTile data={decadeRatings} />
-            <RewatchAnalysisTile mostRewatched={mostRewatched} rewatchRatio={rewatchRatio} />
-            <TopDirectorsTile data={topDirectors} status={enrichmentStatus} />
+
+        {/* World Map - Full Width */}
+        <div className="chart-card-full-row">
+          <GoogleGeoChart data={countryData} status={enrichmentStatus} progress={enrichmentProgress} />
         </div>
+
+        {/* Stars & Directors */}
         <div className="lists-grid">
-          <GoToRatingTile rating={goToRating.rating} count={goToRating.count} />
+          <MostWatchedStarsTile data={mostWatchedStars} status={enrichmentStatus} />
+          <AllStarCastTile data={allStarCast} status={enrichmentStatus} />
+          <TopDirectorsTile data={topDirectors} status={enrichmentStatus} />
+        </div>
+
+        {/* Fun Stats */}
+        <div className="stats-grid fun-stats">
           <StreakTile streak={longestStreak} />
           <BingeWatchTile count={bingeWatchCount} />
           <PrimeTimeTile year={primeTimeYear} />
-        </div>
-        <div className="chart-card">
-          <HeatmapTile watchedDates={watchedDates} />
+          <LoggingLagTile averageLag={averageLoggingLag} />
         </div>
       </div>
     </div>

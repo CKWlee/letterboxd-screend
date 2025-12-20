@@ -406,6 +406,25 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  /* Scrollable with max height */
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+/* Scrollbar styles for actor list */
+.actor-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.actor-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.actor-list::-webkit-scrollbar-thumb {
+  background-color: #d6d6d6;
+  border-radius: 6px;
+  border: 2px solid transparent;
 }
 
 .actor-list-item {
@@ -446,36 +465,7 @@ h1 {
   font-weight: bold;
 }
 
-/* Add this to the bottom of your App.css file */
-
-.actor-list {
-  /* This sets a maximum height for the list */
-  max-height: 280px;
-
-  /* This enables a vertical scrollbar only when needed */
-  overflow-y: auto;
-
-  /* Adds some space on the right to prevent text from touching the scrollbar */
-  padding-right: 10px;
-}
-
-/* --- Optional: Styles for a more modern, subtle scrollbar --- */
-.actor-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.actor-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.actor-list::-webkit-scrollbar-thumb {
-  background-color: #d6d6d6;
-  border-radius: 6px;
-  border: 2px solid transparent;
-}
-
-/* In App.css */
-
+/* Full-width chart card */
 .chart-card-full-row {
   grid-column: 1 / -1; /* This makes the item span all columns */
   background: var(--card-bg);
@@ -505,3 +495,212 @@ h1 {
   outline: none;
 }
 
+/* ========== Word Cloud Styles ========== */
+.word-cloud-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.word-cloud-container {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.word-cloud-subtitle {
+  text-align: center;
+  margin-top: 8px;
+  font-style: italic;
+  font-size: 0.9rem;
+  color: #5E35B1;
+}
+
+/* ========== Mobile Responsive Styles ========== */
+@media screen and (max-width: 768px) {
+  .dashboard {
+    padding: 1rem;
+  }
+
+  .dashboard-header h1 {
+    font-size: 1.8rem;
+    letter-spacing: 1px;
+  }
+
+  .dashboard-header p {
+    font-size: 0.9rem;
+  }
+
+  /* Stats grid - 2 columns on tablet, 2 on mobile */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+
+  .stat-card {
+    padding: 1rem;
+  }
+
+  .stat-value {
+    font-size: 1.8rem;
+  }
+
+  /* Charts - single column on mobile */
+  .charts-grid,
+  .lists-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-card,
+  .list-card {
+    padding: 0.75rem;
+  }
+
+  /* Date info stacks vertically */
+  .date-info {
+    flex-direction: column;
+  }
+
+  .date-info > div {
+    min-width: 100%;
+  }
+
+  /* Word cloud scales down */
+  .word-cloud-container {
+    max-width: 100%;
+  }
+
+  .word-cloud-container svg {
+    width: 100% !important;
+    height: auto !important;
+    max-width: 320px;
+  }
+
+  /* Favorites tile adjustments */
+  .favorites-content {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .list-section {
+    width: 100%;
+  }
+
+  /* Actor tiles */
+  .actor-list {
+    max-height: 220px;
+  }
+
+  .actor-profile-pic {
+    width: 35px;
+    height: 35px;
+  }
+
+  /* Full row cards */
+  .chart-card-full-row {
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  /* Heatmap adjustments */
+  .heatmap-tile {
+    overflow-x: auto;
+  }
+
+  .heatmap-legend {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* Rating change tile */
+  .rating-value {
+    font-size: 1.2rem;
+  }
+
+  .rating-arrow {
+    font-size: 1.5rem;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .dashboard {
+    padding: 0.75rem;
+  }
+
+  .dashboard-header h1 {
+    font-size: 1.5rem;
+  }
+
+  /* Stats grid - 2 columns, smaller */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+
+  .stat-card {
+    padding: 0.75rem;
+    min-height: 80px;
+  }
+
+  .stat-card h3 {
+    font-size: 0.85rem;
+  }
+
+  .stat-value {
+    font-size: 1.5rem;
+  }
+
+  .prolific-month-value .stat-value {
+    font-size: 1.2rem;
+  }
+
+  .prolific-month-count {
+    font-size: 0.85rem;
+  }
+
+  /* Upload screen adjustments */
+  .upload-container,
+  .loading-container {
+    padding: 25px 20px;
+    margin: 1rem;
+    width: calc(100% - 2rem);
+  }
+
+  .logo {
+    width: 80px;
+  }
+
+  h1 {
+    font-size: 1.8rem;
+    letter-spacing: 1px;
+  }
+
+  .upload-button {
+    padding: 12px 30px;
+    font-size: 1rem;
+  }
+
+  .progress-bar-container {
+    width: 100%;
+    max-width: 250px;
+  }
+
+  /* Charts - reduce height on small screens */
+  .recharts-responsive-container {
+    min-height: 220px !important;
+  }
+}
+
+/* ========== Tablet Landscape ========== */
+@media screen and (min-width: 769px) and (max-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .charts-grid,
+  .lists-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

@@ -3,6 +3,7 @@ import React from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell
 } from 'recharts';
+import { COLORS } from './constants';
 
 // Custom shape for the bars to have rounded tops
 const RoundedBar = (props) => {
@@ -56,9 +57,6 @@ export default function DecadeRatingsTile({ data }) {
       </div>
     );
   }
-
-  // Colors from your App.css file
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658'];
 
   return (
     <div className="chart-card">
