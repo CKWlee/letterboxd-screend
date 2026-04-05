@@ -1,10 +1,9 @@
-// src/hooks/useDashboardStats.js
 // All the heavy useMemo stat calculations extracted from Dashboard.jsx
 import { useMemo } from 'react';
 import { parseYMD } from '../utils/dateUtils';
 
 export function useDashboardStats({ diary, watched, ratings, reviews, favorites, enrichedData }) {
-  // ── Field key detection ─────────────────────────────────────────────────
+  // figure out which csv columns are which
   const diaryKeys      = Object.keys(diary[0]   || {});
   const watchedObjKeys = Object.keys(watched[0] || {});
   const ratingObjKeys  = Object.keys(ratings[0] || {});
@@ -16,7 +15,7 @@ export function useDashboardStats({ diary, watched, ratings, reviews, favorites,
   const ratingField    = ratingObjKeys.find(k => /rating/i.test(k));
   const watchedYearKey = watchedObjKeys.find(k => /^year$/i.test(k) || /release.*year/i.test(k));
 
-  // ── Summary counts ──────────────────────────────────────────────────────
+  // basic numbers
   const totalWatched   = watched.length;
   const rewatchedCount = rewatchKey
     ? new Set(diary.filter(d => d[rewatchKey]?.toLowerCase() === 'yes').map(d => d[filmKey])).size
@@ -30,7 +29,7 @@ export function useDashboardStats({ diary, watched, ratings, reviews, favorites,
     : 0;
   const reviewsWritten = reviews.length;
 
-  // ── First / last watch ──────────────────────────────────────────────────
+  // first and last film
   const { firstWatch, lastWatch, firstMovie, lastMovie } = useMemo(() => {
     const sorted = [...diary]
       .filter(d => d[watchedDateKey] && parseYMD(d[watchedDateKey]))
@@ -43,7 +42,7 @@ export function useDashboardStats({ diary, watched, ratings, reviews, favorites,
     };
   }, [diary, watchedDateKey, filmKey]);
 
-  // ── Monthly activity ────────────────────────────────────────────────────
+  // films per month
   const monthlyActivity = useMemo(() => {
     const counts = {};
     watched.forEach(m => {
@@ -58,7 +57,7 @@ export function useDashboardStats({ diary, watched, ratings, reviews, favorites,
       .map(([month, count]) => ({ month, count }));
   }, [watched, watchedDateKey]);
 
-  // ── Monthly ratings ─────────────────────────────────────────────────────
+  // avg rating per month
   const monthlyRatings = useMemo(() => {
     const localRatingField = diaryKeys.find(k => /rating/i.test(k));
     const sums = {}, cnt = {};
@@ -76,7 +75,7 @@ export function useDashboardStats({ diary, watched, ratings, reviews, favorites,
       .map(([lbl, sum]) => ({ label: lbl, rating: sum / cnt[lbl] }));
   }, [diary, watchedDateKey, diaryKeys]);
 
-  // ── Rating distribution ─────────────────────────────────────────────────
+  // how many of each star rating
   const ratingDistribution = useMemo(() => {
     const dist = {};
     validRatings.forEach(r => {
@@ -88,7 +87,7 @@ export function useDashboardStats({ diary, watched, ratings, reviews, favorites,
       .map(([rating, count]) => ({ rating, count }));
   }, [validRatings, ratingField]);
 
-  // ── Favorite / stinker films ────────────────────────────────────────────
+  // best and worst rated
   const favoriteFilmsData = useMemo(() => {
     if (!ratings.length || !ratingField) return { favorites: [], stinkers: [], minRating: 0, maxRating: 0 };
     const nums = ratings.map(r => parseFloat(r[ratingField])).filter(n => !isNaN(n));
@@ -103,7 +102,7 @@ export function useDashboardStats({ diary, watched, ratings, reviews, favorites,
     };
   }, [ratings, ratingField]);
 
-  // ── Prolific month ──────────────────────────────────────────────────────
+  // most active month
   const prolificMonth = useMemo(() =>
     monthlyActivity.length
       ? monthlyActivity.reduce((max, c) => c.count > max.count ? c : max, { month: 'N/A', count: 0 })
@@ -111,7 +110,7 @@ export function useDashboardStats({ diary, watched, ratings, reviews, favorites,
     [monthlyActivity]
   );
 
-  // ── Busiest day ─────────────────────────────────────────────────────────
+  // busiest day of the week
   const busiestDay = useMemo(() => {
     if (!diary.length) return { day: 'N/A', count: 0 };
     const dayCounts = {};
@@ -124,7 +123,7 @@ export function useDashboardStats({ diary, watched, ratings, reviews, favorites,
     return { day: top[0], count: top[1] };
   }, [diary, watchedDateKey]);
 
-  // ── Biggest rating change ───────────────────────────────────────────────
+  // film with biggest opinion change on rewatch
   const biggestRatingChange = useMemo(() => {
     const ratingKey = diaryKeys.find(k => /rating/i.test(k));
     const dateKey   = diaryKeys.find(k => /^Date$/i.test(k));
@@ -152,7 +151,7 @@ export function useDashboardStats({ diary, watched, ratings, reviews, favorites,
     return maxChange.change > 0 ? maxChange : null;
   }, [diary, filmKey, diaryKeys]);
 
-  // ── Release years bar chart data ────────────────────────────────────────
+  // release year distribution
   const yearsData = useMemo(() => {
     if (!watchedYearKey) return [];
     const counts = {};
@@ -163,7 +162,7 @@ export function useDashboardStats({ diary, watched, ratings, reviews, favorites,
     return Array.from({ length: maxY - minY + 1 }, (_, i) => ({ name: String(minY + i), count: counts[minY + i] || 0 }));
   }, [watched, watchedYearKey]);
 
-  // ── Decade ratings ──────────────────────────────────────────────────────
+  // avg rating by decade
   const decadeRatings = useMemo(() => {
     if (!ratings.length || !yearKey || !ratingField) return [];
     const byDecade = {};
@@ -181,7 +180,7 @@ export function useDashboardStats({ diary, watched, ratings, reviews, favorites,
       .sort((a, b) => a.decade.localeCompare(b.decade));
   }, [ratings, yearKey, ratingField]);
 
-  // ── Rewatch data ────────────────────────────────────────────────────────
+  // rewatch stats
   const mostRewatched = useMemo(() => {
     if (!diary.length || !rewatchKey) return { name: 'No rewatches yet!', count: 1 };
     const rewatches = diary.filter(d => d[rewatchKey]?.toLowerCase() === 'yes');
@@ -198,7 +197,7 @@ export function useDashboardStats({ diary, watched, ratings, reviews, favorites,
     return { rewatches: rc, new: total - rc };
   }, [diary, rewatchKey]);
 
-  // ── TMDB-dependent: directors, stars, all-star cast ────────────────────
+  // needs tmdb data: directors, actors, etc
   const topDirectors = useMemo(() => {
     if (!enrichedData) return [];
     const counts = {};
@@ -244,7 +243,7 @@ export function useDashboardStats({ diary, watched, ratings, reviews, favorites,
     return { counts: Object.fromEntries(Object.entries(counts).map(([k, v]) => [k, { count: v }])) };
   }, [enrichedData]);
 
-  // ── Misc stats ──────────────────────────────────────────────────────────
+  // random stats
   const longestStreak = useMemo(() => {
     const dates = [...new Set(diary.map(d => d[watchedDateKey]))]
       .map(s => parseYMD(s)).filter(d => d && !isNaN(d)).sort((a, b) => a - b);
@@ -279,7 +278,7 @@ export function useDashboardStats({ diary, watched, ratings, reviews, favorites,
     return lags.length ? lags.reduce((s, l) => s + l, 0) / lags.length : 0;
   }, [diary, diaryKeys]);
 
-  // ── Word cloud data ─────────────────────────────────────────────────────
+  // Word cloud data
   const wordCloudData = useMemo(() => {
     const commentKey = diaryKeys.find(k => /comment|entry|notes|text/i.test(k));
     const reviewKey  = Object.keys(reviews[0] || {}).find(k => /review|text/i.test(k));

@@ -1,10 +1,4 @@
-// src/utils/dateUtils.js
-
-/**
- * Parse a date string in YYYY-MM-DD format to a Date object
- * @param {string} s - Date string in format "YYYY-MM-DD"
- * @returns {Date|null} - Parsed Date object or null if invalid
- */
+// parse YYYY-MM-DD into a Date, returns null if it cant
 export const parseYMD = (s) => {
   if (!s || typeof s !== 'string') return null;
   const parts = String(s).split('-').map(n => parseInt(n, 10));

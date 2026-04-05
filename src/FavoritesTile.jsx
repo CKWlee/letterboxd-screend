@@ -1,7 +1,4 @@
-// src/FavoritesTile.jsx
 import React from 'react';
-
-// A helper component for displaying a single film
 const FilmItem = ({ film }) => (
   <li>
     <span className="film-title">{film.Name}</span>
@@ -10,8 +7,8 @@ const FilmItem = ({ film }) => (
 );
 
 export default function FavoritesTile({ favorites = [], stinkers = [], maxRating = 0, minRating = 0 }) {
-  // THE CHANGE IS HERE: We are no longer slicing the arrays.
-  // The component will now use the full lists passed in as props.
+  
+  
 
   return (
     <div className="list-card favorites-tile">

@@ -1,9 +1,6 @@
-// src/RewatchAnalysisTile.jsx
 import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend } from 'recharts';
-
-// Using the color palette from your other charts
-const COLORS = ['#0088FE', '#00C49F']; // Blue for New, Green for Rewatch
+const COLORS = ['#0088FE', '#00C49F'];
 
 export default function RewatchAnalysisTile({ mostRewatched, rewatchRatio }) {
   const data = [

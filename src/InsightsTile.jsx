@@ -1,4 +1,3 @@
-// src/InsightsTile.jsx
 import React, { useMemo } from 'react';
 import { parseYMD } from './utils/dateUtils';
 
@@ -15,12 +14,12 @@ function generateInsights({ diary, watched, ratings, reviews, enrichedData }) {
   const yearKey    = watchedKeys.find(k => /^year$/i.test(k) || /release.*year/i.test(k));
   const ratingField = ratingKeys.find(k => /rating/i.test(k));
 
-  // Pre-build ratings lookup map — O(1) instead of O(n) per movie
+  // ratings lookup so we're not looping every time
   const ratingsMap = useMemo
     ? ratings.reduce((m, r) => { m[r[filmKey]] = parseFloat(r[ratingField]); return m; }, {})
     : {};
 
-  // ── 1. Busiest day of the week ──────────────────────────────────────────
+  // which day do they watch the most
   const dayCounts = diary.reduce((acc, entry) => {
     const d = parseYMD(entry[dateKey]);
     if (d) {
@@ -39,7 +38,7 @@ function generateInsights({ diary, watched, ratings, reviews, enrichedData }) {
     });
   }
 
-  // ── 2. Rewatch opinion drift ────────────────────────────────────────────
+  // do rewatches get rated higher or lower
   if (rewatchKey && ratingField) {
     const byFilm = {};
     diary.forEach(entry => {
@@ -70,7 +69,7 @@ function generateInsights({ diary, watched, ratings, reviews, enrichedData }) {
     }
   }
 
-  // ── 3. Most-watched genre vs highest-rated genre ────────────────────────
+  // genre they watch most vs genre they rate highest
   if (enrichedData && ratingField) {
     const genreStats = {};
     enrichedData.forEach(movie => {
@@ -111,7 +110,7 @@ function generateInsights({ diary, watched, ratings, reviews, enrichedData }) {
     }
   }
 
-  // ── 4. Rating trend over time ───────────────────────────────────────────
+  // are they getting nicer or meaner over time
   if (ratingField && diary.length > 20) {
     const byYear = {};
     diary.forEach(entry => {
@@ -139,7 +138,7 @@ function generateInsights({ diary, watched, ratings, reviews, enrichedData }) {
     }
   }
 
-  // ── 5. Logging lag ──────────────────────────────────────────────────────
+  // how long before they log it
   const loggedDateKey  = diaryKeys.find(k => /^Date$/i.test(k));
   const watchedDateKey = diaryKeys.find(k => /Watched Date/i.test(k));
 
@@ -173,7 +172,7 @@ function generateInsights({ diary, watched, ratings, reviews, enrichedData }) {
     }
   }
 
-  // ── 6. Decade preference ────────────────────────────────────────────────
+  // old films or new films
   if (yearKey && watched.length > 10) {
     const relYears = watched.map(m => parseInt(m[yearKey], 10)).filter(y => !isNaN(y));
     if (relYears.length > 0) {

@@ -1,4 +1,3 @@
-// src/Dashboard.jsx
 import React from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -26,7 +25,7 @@ import GoogleGeoChart     from './GoogleGeoChart';
 import InsightsTile       from './InsightsTile';
 
 export default function Dashboard({ parsedData }) {
-  // ── Validate required CSVs ──────────────────────────────────────────────
+  // make sure they uploaded the right files
   const required = ['diary', 'watched', 'ratings', 'reviews'];
   const provided  = Object.keys(parsedData).map(k => k.toLowerCase());
   const missing   = required.filter(k => !provided.includes(k));
@@ -43,7 +42,7 @@ export default function Dashboard({ parsedData }) {
     );
   }
 
-  // ── Normalise CSV map ───────────────────────────────────────────────────
+  // lowercase all the csv names so matching isnt annoying
   const csvMap  = Object.fromEntries(Object.entries(parsedData).map(([k, v]) => [k.toLowerCase(), v]));
   const diary    = csvMap['diary']    || [];
   const watched  = csvMap['watched']  || [];
@@ -52,7 +51,7 @@ export default function Dashboard({ parsedData }) {
   const likesKey = Object.keys(parsedData).find(k => /likes[\/_]films$/i.test(k));
   const favorites = likesKey ? parsedData[likesKey] : [];
 
-  // ── Hooks ───────────────────────────────────────────────────────────────
+  // data loading + calculations
   const { enrichedData, enrichmentStatus, enrichmentProgress } = useEnrichment(watched);
 
   const {
@@ -81,7 +80,7 @@ export default function Dashboard({ parsedData }) {
       </div>
 
       <div className="dashboard-content">
-        {/* ── Top Stats ── */}
+        {/* Top Stats */}
         <div className="stats-grid">
           {[
             ['Total Watched', totalWatched],
@@ -98,7 +97,7 @@ export default function Dashboard({ parsedData }) {
           ))}
         </div>
 
-        {/* ── Main Charts ── */}
+        {/* Main Charts */}
         <div className="charts-grid">
           <div className="chart-card">
             <h2>Monthly Activity</h2>
@@ -139,7 +138,7 @@ export default function Dashboard({ parsedData }) {
           <SentimentTile diary={diary} reviews={reviews} />
         </div>
 
-        {/* ── Secondary Stats ── */}
+        {/* Secondary Stats */}
         <div className="stats-grid secondary-stats">
           <div className="stat-card">
             <h3>Most Prolific Month</h3>
@@ -158,7 +157,7 @@ export default function Dashboard({ parsedData }) {
           <RatingChangeTile changeInfo={biggestRatingChange} />
         </div>
 
-        {/* ── Date Range ── */}
+        {/* Date Range */}
         <div className="date-info">
           <div>
             <h3>First Watched</h3>
@@ -170,12 +169,12 @@ export default function Dashboard({ parsedData }) {
           </div>
         </div>
 
-        {/* ── Heatmap ── */}
+        {/* Heatmap */}
         <div className="chart-card-full-row">
           <HeatmapTile watchedDates={allWatchedDates} />
         </div>
 
-        {/* ── Secondary Charts ── */}
+        {/* Secondary Charts */}
         <div className="charts-grid">
           <div className="chart-card">
             <h2>Films Watched by Year</h2>
@@ -192,7 +191,7 @@ export default function Dashboard({ parsedData }) {
           <RewatchAnalysisTile mostRewatched={mostRewatched} rewatchRatio={rewatchRatio} />
         </div>
 
-        {/* ── Word Cloud & Favorites ── */}
+        {/* Word Cloud & Favorites */}
         <div className="lists-grid">
           <div className="list-card word-cloud-card">
             <h2>Word Cloud</h2>
@@ -209,19 +208,19 @@ export default function Dashboard({ parsedData }) {
           />
         </div>
 
-        {/* ── World Map ── */}
+        {/* World Map */}
         <div className="chart-card-full-row">
           <GoogleGeoChart data={countryData} status={enrichmentStatus} progress={enrichmentProgress} />
         </div>
 
-        {/* ── Stars & Directors ── */}
+        {/* Stars & Directors */}
         <div className="lists-grid">
           <MostWatchedStarsTile data={mostWatchedStars} status={enrichmentStatus} />
           <AllStarCastTile      data={allStarCast}       status={enrichmentStatus} />
           <TopDirectorsTile     data={topDirectors}      status={enrichmentStatus} />
         </div>
 
-        {/* ── Fun Stats ── */}
+        {/* Fun Stats */}
         <div className="stats-grid fun-stats">
           <StreakTile      streak={longestStreak}   />
           <BingeWatchTile count={bingeWatchCount}   />
@@ -229,7 +228,7 @@ export default function Dashboard({ parsedData }) {
           <LoggingLagTile averageLag={averageLoggingLag} />
         </div>
 
-        {/* ── Insights ── */}
+        {/* Insights */}
         <InsightsTile
           diary={diary}
           watched={watched}

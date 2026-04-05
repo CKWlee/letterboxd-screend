@@ -1,4 +1,3 @@
-// src/RatingChangeTile.jsx
 import React from 'react';
 
 export default function RatingChangeTile({ changeInfo }) {

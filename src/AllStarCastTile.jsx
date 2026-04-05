@@ -1,8 +1,5 @@
-// src/AllStarCastTile.jsx
 import React from 'react';
 import { ACTOR_PLACEHOLDER } from './constants';
-
-// Simple component to render star icons
 const StarRating = ({ rating }) => (
   <span className="star-rating">{rating.toFixed(1)} ★</span>
 );

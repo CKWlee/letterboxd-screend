@@ -1,4 +1,3 @@
-// src/TopDirectorsTile.jsx
 import React from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend

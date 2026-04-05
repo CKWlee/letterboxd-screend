@@ -1,4 +1,3 @@
-// src/utils/tmdb.js
 // Routes TMDB enrichment through the FastAPI backend so the API key
 // never touches the client bundle.
 

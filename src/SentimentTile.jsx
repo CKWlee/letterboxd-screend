@@ -1,8 +1,7 @@
-// src/SentimentTile.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import Sentiment from 'sentiment';
 
-// Creates the analyzer instance used by the component
+// sentiment analyzer
 const sentimentAnalyzer = new Sentiment();
 
 export default function SentimentTile({ diary, reviews }) {
@@ -20,7 +19,7 @@ export default function SentimentTile({ diary, reviews }) {
     return keys.find(k => /review|text/i.test(k));
   }, [reviews]);
 
-  // This hook performs the final, scaled "Average Intensity" calculation.
+  // calculate intensity score
   useEffect(() => {
     if (!commentKey && !reviewKey) {
       setSentiment(0);
@@ -36,22 +35,20 @@ export default function SentimentTile({ diary, reviews }) {
     const totalScore = result.score;
     const scoredWordsCount = result.positive.length + result.negative.length;
 
-    // 1. Calculate the "intensity" score. This can be outside the -1 to 1 range.
+    // raw intensity
     let intensityScore = 0;
     if (scoredWordsCount > 0) {
       intensityScore = totalScore / scoredWordsCount;
     }
 
-    // 2. NEW: Scale the score to fit the [-1, 1] range, since the max word score is 5.
+    // scale to -1 to 1
     const scaledScore = intensityScore / 5.0;
 
-    // 3. Normalize the scaled score as a final safety check and set the state.
+    // clamp it
     const normalizedScore = Math.max(-1, Math.min(1, scaledScore));
     setSentiment(normalizedScore);
 
   }, [diary, reviews, commentKey, reviewKey]);
-
-
   // The rendering logic below does not need to change.
   if (sentiment === null) {
     return (

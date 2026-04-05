@@ -1,9 +1,8 @@
-// src/WordCloudD3.jsx
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import cloud from 'd3-cloud';
 import { scaleLinear, scaleSqrt } from 'd3-scale';
 
-// Comprehensive stopwords — common English words that add no meaning
+// words nobody cares about
 const STOPWORDS = new Set([
   'a','an','the','and','or','but','in','on','at','to','for','of','with',
   'by','from','as','is','was','are','were','be','been','being','have','has',
@@ -41,7 +40,7 @@ export default function WordCloudD3({ data, width: propWidth, height: propHeight
   const [dims, setDims]   = useState({ w: propWidth || 500, h: propHeight || 260 });
   const [words, setWords] = useState([]);
 
-  // Responsive sizing
+  // resize to fit container
   useEffect(() => {
     if (!containerRef.current) return;
     const ro = new ResizeObserver(entries => {
@@ -55,7 +54,7 @@ export default function WordCloudD3({ data, width: propWidth, height: propHeight
     return () => ro.disconnect();
   }, []);
 
-  // Filter stopwords and normalise
+  // filter out junk words
   const cleanData = useMemo(() => {
     if (!data || !data.length) return [];
     return data
@@ -64,7 +63,7 @@ export default function WordCloudD3({ data, width: propWidth, height: propHeight
       .slice(0, 60); // cap at 60 words for clean layout
   }, [data]);
 
-  // Font size scale — sqrt gives better visual balance than linear
+  // size scale
   const sizeScale = useMemo(() => {
     if (!cleanData.length) return () => 14;
     const vals = cleanData.map(d => d.value);
@@ -74,7 +73,7 @@ export default function WordCloudD3({ data, width: propWidth, height: propHeight
       .clamp(true);
   }, [cleanData]);
 
-  // Color scale — letterboxd-ish orange/green palette
+  // colors
   const colorScale = useMemo(() => {
     if (!cleanData.length) return () => '#ff8000';
     const vals = cleanData.map(d => d.value);

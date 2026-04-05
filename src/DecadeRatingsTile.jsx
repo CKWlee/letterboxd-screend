@@ -1,11 +1,10 @@
-// src/DecadeRatingsTile.jsx
 import React from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell
 } from 'recharts';
 import { COLORS } from './constants';
 
-// Custom shape for the bars to have rounded tops
+// rounded bar shape
 const RoundedBar = (props) => {
   const { x, y, width, height, fill } = props;
   const radius = 6;
@@ -17,7 +16,7 @@ const RoundedBar = (props) => {
   );
 };
 
-// Custom tooltip component
+// tooltip
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
@@ -46,8 +45,6 @@ const CustomTooltip = ({ active, payload, label }) => {
   }
   return null;
 };
-
-
 export default function DecadeRatingsTile({ data }) {
   if (!data || data.length === 0) {
     return (

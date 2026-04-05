@@ -1,4 +1,3 @@
-// src/LoggingLagTile.jsx
 import React from 'react';
 
 export default function LoggingLagTile({ averageLag }) {

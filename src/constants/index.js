@@ -1,4 +1,3 @@
-// src/constants/index.js
 
 // Chart color palettes
 export const COLORS = [

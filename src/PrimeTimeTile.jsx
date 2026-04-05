@@ -1,4 +1,3 @@
-// src/PrimeTimeTile.jsx
 import React from 'react';
 
 export default function PrimeTimeTile({ year }) {

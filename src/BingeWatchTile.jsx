@@ -1,4 +1,3 @@
-// src/BingeWatchTile.jsx
 import React from 'react';
 
 export default function BingeWatchTile({ count }) {

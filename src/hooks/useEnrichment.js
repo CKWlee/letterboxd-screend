@@ -1,5 +1,4 @@
-// src/hooks/useEnrichment.js
-// Handles TMDB enrichment state so Dashboard.jsx stays readable
+// tmdb enrichment stuff
 import { useState, useEffect } from 'react';
 import { enrichMoviesWithTMDB } from '../utils/tmdb';
 
