@@ -1,25 +1,26 @@
 // src/InsightsTile.jsx
-// Analytical insight summary — surfaces written observations from the
-// parsed data so the dashboard reads as analysis, not just visualization.
-
 import React, { useMemo } from 'react';
 import { parseYMD } from './utils/dateUtils';
 
 function generateInsights({ diary, watched, ratings, reviews, enrichedData }) {
   const insights = [];
 
-  // ── Key field detection ───────────────────────────────────────────────────
-  const diaryKeys     = Object.keys(diary[0] || {});
-  const watchedKeys   = Object.keys(watched[0] || {});
-  const ratingKeys    = Object.keys(ratings[0] || {});
+  const diaryKeys   = Object.keys(diary[0]   || {});
+  const watchedKeys = Object.keys(watched[0]  || {});
+  const ratingKeys  = Object.keys(ratings[0]  || {});
 
-  const filmKey       = diaryKeys.find(k => /film|movie|title|name/i.test(k)) || 'Name';
-  const dateKey       = diaryKeys.find(k => /watched.date/i.test(k)) || 'Watched Date';
-  const rewatchKey    = diaryKeys.find(k => /rewatch/i.test(k));
-  const yearKey       = watchedKeys.find(k => /^year$/i.test(k) || /release.*year/i.test(k));
-  const ratingField   = ratingKeys.find(k => /rating/i.test(k));
+  const filmKey    = diaryKeys.find(k => /film|movie|title|name/i.test(k))    || 'Name';
+  const dateKey    = diaryKeys.find(k => /watched.date/i.test(k))             || 'Watched Date';
+  const rewatchKey = diaryKeys.find(k => /rewatch/i.test(k));
+  const yearKey    = watchedKeys.find(k => /^year$/i.test(k) || /release.*year/i.test(k));
+  const ratingField = ratingKeys.find(k => /rating/i.test(k));
 
-  // ── 1. Busiest day of the week ────────────────────────────────────────────
+  // Pre-build ratings lookup map — O(1) instead of O(n) per movie
+  const ratingsMap = useMemo
+    ? ratings.reduce((m, r) => { m[r[filmKey]] = parseFloat(r[ratingField]); return m; }, {})
+    : {};
+
+  // ── 1. Busiest day of the week ──────────────────────────────────────────
   const dayCounts = diary.reduce((acc, entry) => {
     const d = parseYMD(entry[dateKey]);
     if (d) {
@@ -31,29 +32,27 @@ function generateInsights({ diary, watched, ratings, reviews, enrichedData }) {
 
   if (Object.keys(dayCounts).length > 0) {
     const topDay = Object.entries(dayCounts).sort((a, b) => b[1] - a[1])[0];
-    const total  = diary.length;
-    const pct    = Math.round((topDay[1] / total) * 100);
-    insights.push(
-      `${pct}% of your logged films were watched on a ${topDay[0]} — you clearly have a routine.`
-    );
+    const pct    = Math.round((topDay[1] / diary.length) * 100);
+    insights.push({
+      emoji: '📅',
+      text: `${pct}% of your films were watched on a ${topDay[0]} — you've got a ritual.`,
+    });
   }
 
-  // ── 2. Rewatch opinion drift ──────────────────────────────────────────────
+  // ── 2. Rewatch opinion drift ────────────────────────────────────────────
   if (rewatchKey && ratingField) {
-    const ratingByFilm = {};
+    const byFilm = {};
     diary.forEach(entry => {
       const name   = entry[filmKey];
       const rating = parseFloat(entry[ratingField]);
       const isRew  = entry[rewatchKey]?.toLowerCase() === 'yes';
       if (!name || isNaN(rating)) return;
-      if (!ratingByFilm[name]) ratingByFilm[name] = { first: null, rewatches: [] };
-      if (!isRew) ratingByFilm[name].first = rating;
-      else        ratingByFilm[name].rewatches.push(rating);
+      if (!byFilm[name]) byFilm[name] = { first: null, rewatches: [] };
+      if (!isRew) byFilm[name].first = rating;
+      else        byFilm[name].rewatches.push(rating);
     });
 
-    const drifts = Object.values(ratingByFilm).filter(
-      f => f.first !== null && f.rewatches.length > 0
-    );
+    const drifts = Object.values(byFilm).filter(f => f.first !== null && f.rewatches.length > 0);
     if (drifts.length > 0) {
       const avg = drifts.reduce((sum, f) => {
         const rewAvg = f.rewatches.reduce((s, r) => s + r, 0) / f.rewatches.length;
@@ -61,26 +60,27 @@ function generateInsights({ diary, watched, ratings, reviews, enrichedData }) {
       }, 0) / drifts.length;
 
       if (Math.abs(avg) >= 0.1) {
-        const direction = avg > 0 ? 'higher' : 'lower';
-        insights.push(
-          `Films you rewatch tend to land ${Math.abs(avg).toFixed(1)}★ ${direction} on second viewing — your taste ${avg > 0 ? 'warms up to things over time' : 'gets more critical with distance'}.`
-        );
+        const dir = avg > 0 ? 'higher' : 'lower';
+        const why = avg > 0 ? 'things grow on you' : 'distance makes you more critical';
+        insights.push({
+          emoji: '🔁',
+          text: `Rewatches land ${Math.abs(avg).toFixed(1)}★ ${dir} than first viewings — ${why}.`,
+        });
       }
     }
   }
 
-  // ── 3. Genre you rate vs. watch most ─────────────────────────────────────
+  // ── 3. Most-watched genre vs highest-rated genre ────────────────────────
   if (enrichedData && ratingField) {
     const genreStats = {};
     enrichedData.forEach(movie => {
-      const rating = ratings.find(r => r[filmKey] === movie[filmKey]);
-      const ratingVal = rating ? parseFloat(rating[ratingField]) : null;
+      const ratingVal = ratingsMap[movie[filmKey]];
       (movie.genres || []).forEach(genre => {
         if (!genreStats[genre]) genreStats[genre] = { count: 0, ratingSum: 0, ratingCount: 0 };
         genreStats[genre].count++;
         if (ratingVal && !isNaN(ratingVal)) {
-          genreStats[genre].ratingSum += ratingVal;
-          genreStats[genre].ratingCount++;
+          genreStats[genre].ratingSum   += ratingVal;
+          genreStats[genre].ratingCount += 1;
         }
       });
     });
@@ -94,22 +94,24 @@ function generateInsights({ diary, watched, ratings, reviews, enrichedData }) {
       }));
 
     if (genreArr.length >= 2) {
-      const mostWatched = genreArr.sort((a, b) => b.count - a.count)[0];
+      const mostWatched  = [...genreArr].sort((a, b) => b.count - a.count)[0];
       const highestRated = [...genreArr].sort((a, b) => b.avgRating - a.avgRating)[0];
 
       if (mostWatched.genre !== highestRated.genre) {
-        insights.push(
-          `You watch the most ${mostWatched.genre} films (${mostWatched.count} total), but your highest-rated genre is actually ${highestRated.genre} (avg ${highestRated.avgRating.toFixed(2)}★).`
-        );
+        insights.push({
+          emoji: '🎬',
+          text: `You watch the most ${mostWatched.genre} (${mostWatched.count} films), but you rate ${highestRated.genre} highest (avg ${highestRated.avgRating.toFixed(2)}★).`,
+        });
       } else {
-        insights.push(
-          `${mostWatched.genre} is both your most-watched and highest-rated genre — you know what you like.`
-        );
+        insights.push({
+          emoji: '🎬',
+          text: `${mostWatched.genre} is both your most-watched and highest-rated genre. You know exactly what you like.`,
+        });
       }
     }
   }
 
-  // ── 4. Rating trend over time ─────────────────────────────────────────────
+  // ── 4. Rating trend over time ───────────────────────────────────────────
   if (ratingField && diary.length > 20) {
     const byYear = {};
     diary.forEach(entry => {
@@ -123,22 +125,24 @@ function generateInsights({ diary, watched, ratings, reviews, enrichedData }) {
 
     const years = Object.keys(byYear).map(Number).sort();
     if (years.length >= 2) {
-      const firstYrAvg = byYear[years[0]].reduce((s, r) => s + r, 0) / byYear[years[0]].length;
-      const lastYrAvg  = byYear[years[years.length - 1]].reduce((s, r) => s + r, 0) / byYear[years[years.length - 1]].length;
-      const delta = lastYrAvg - firstYrAvg;
+      const firstAvg = byYear[years[0]].reduce((s, r) => s + r, 0) / byYear[years[0]].length;
+      const lastAvg  = byYear[years[years.length - 1]].reduce((s, r) => s + r, 0) / byYear[years[years.length - 1]].length;
+      const delta    = lastAvg - firstAvg;
 
       if (Math.abs(delta) >= 0.15) {
-        const direction = delta > 0 ? 'more generous' : 'more critical';
-        insights.push(
-          `Your average rating in ${years[years.length - 1]} (${lastYrAvg.toFixed(2)}★) was ${Math.abs(delta).toFixed(2)}★ ${delta > 0 ? 'higher' : 'lower'} than in ${years[0]} (${firstYrAvg.toFixed(2)}★) — you're getting ${direction} over time.`
-        );
+        const dir = delta > 0 ? 'more generous' : 'more critical';
+        insights.push({
+          emoji: '📈',
+          text: `Your average rating in ${years[years.length - 1]} (${lastAvg.toFixed(2)}★) vs ${years[0]} (${firstAvg.toFixed(2)}★) — you've gotten ${dir} over time.`,
+        });
       }
     }
   }
 
-  // ── 5. Logging lag behaviour ──────────────────────────────────────────────
-  const loggedDateKey = diaryKeys.find(k => /^Date$/i.test(k));
+  // ── 5. Logging lag ──────────────────────────────────────────────────────
+  const loggedDateKey  = diaryKeys.find(k => /^Date$/i.test(k));
   const watchedDateKey = diaryKeys.find(k => /Watched Date/i.test(k));
+
   if (loggedDateKey && watchedDateKey) {
     const lags = diary
       .map(entry => {
@@ -156,40 +160,41 @@ function generateInsights({ diary, watched, ratings, reviews, enrichedData }) {
       const avgLag  = lags.reduce((s, l) => s + l, 0) / lags.length;
 
       if (pctSame >= 60) {
-        insights.push(
-          `You log films the same day you watch them ${pctSame}% of the time — real-time reviewer energy.`
-        );
+        insights.push({
+          emoji: '⚡',
+          text: `You log ${pctSame}% of films the same day you watch them. Real-time reviewer behavior.`,
+        });
       } else if (avgLag > 3) {
-        insights.push(
-          `On average you wait ${avgLag.toFixed(1)} days to log a film — you tend to sit with it before committing a rating.`
-        );
+        insights.push({
+          emoji: '🕰️',
+          text: `On average you wait ${avgLag.toFixed(1)} days before logging — you like to sit with it first.`,
+        });
       }
     }
   }
 
-  // ── 6. Decade preference ─────────────────────────────────────────────────
+  // ── 6. Decade preference ────────────────────────────────────────────────
   if (yearKey && watched.length > 10) {
-    const relYears = watched
-      .map(m => parseInt(m[yearKey], 10))
-      .filter(y => !isNaN(y));
+    const relYears = watched.map(m => parseInt(m[yearKey], 10)).filter(y => !isNaN(y));
     if (relYears.length > 0) {
-      const avgYear  = relYears.reduce((s, y) => s + y, 0) / relYears.length;
-      const currentYear = new Date().getFullYear();
-      const yearsBack = currentYear - avgYear;
+      const avgYear   = relYears.reduce((s, y) => s + y, 0) / relYears.length;
+      const yearsBack = new Date().getFullYear() - avgYear;
 
       if (yearsBack > 15) {
-        insights.push(
-          `Your average film release year is ${Math.round(avgYear)} — you're drawn to older cinema, ${Math.round(yearsBack)} years back on average.`
-        );
+        insights.push({
+          emoji: '📽️',
+          text: `Your average film release year is ${Math.round(avgYear)} — you're drawn to older cinema, ${Math.round(yearsBack)} years back on average.`,
+        });
       } else if (yearsBack < 5) {
-        insights.push(
-          `With an average release year of ${Math.round(avgYear)}, you're firmly in the contemporary lane — mostly recent releases.`
-        );
+        insights.push({
+          emoji: '🆕',
+          text: `Average release year of ${Math.round(avgYear)} — you're mostly watching current stuff.`,
+        });
       }
     }
   }
 
-  return insights.slice(0, 5); // cap at 5 so the tile doesn't get too long
+  return insights.slice(0, 5);
 }
 
 export default function InsightsTile({ diary, watched, ratings, reviews, enrichedData }) {
@@ -198,19 +203,19 @@ export default function InsightsTile({ diary, watched, ratings, reviews, enriche
     [diary, watched, ratings, reviews, enrichedData]
   );
 
-  if (!insights.length) return null;
+  if (!insights || !insights.length) return null;
 
   return (
-    <div className="chart-card insights-tile">
-      <h2>What the data says about you</h2>
-      <ul className="insights-list">
+    <div className="insights-tile">
+      <h2 className="insights-title">what the data says about you</h2>
+      <div className="insights-list">
         {insights.map((insight, i) => (
-          <li key={i} className="insight-item">
-            <span className="insight-number">{String(i + 1).padStart(2, '0')}</span>
-            <span className="insight-text">{insight}</span>
-          </li>
+          <div key={i} className="insight-row">
+            <span className="insight-emoji">{insight.emoji}</span>
+            <span className="insight-text">{insight.text}</span>
+          </div>
         ))}
-      </ul>
+      </div>
     </div>
   );
 }
