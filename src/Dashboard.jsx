@@ -22,6 +22,7 @@ import PrimeTimeTile from './PrimeTimeTile';
 import MostWatchedStarsTile from './MostWatchedStarsTile';
 import AllStarCastTile from './AllStarCastTile';
 import GoogleGeoChart from './GoogleGeoChart';
+import InsightsTile from './InsightsTile';
 
 export default function Dashboard({ parsedData }) {
   const required = ['diary','watched','ratings','reviews'];
@@ -634,6 +635,15 @@ export default function Dashboard({ parsedData }) {
           <PrimeTimeTile year={primeTimeYear} />
           <LoggingLagTile averageLag={averageLoggingLag} />
         </div>
+
+        {/* Insights Panel */}
+        <InsightsTile
+          diary={diary}
+          watched={watched}
+          ratings={ratings}
+          reviews={reviews}
+          enrichedData={enrichedData}
+        />
       </div>
     </div>
   );
