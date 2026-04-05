@@ -1,44 +1,8 @@
 // src/utils/tmdb.js
+// Routes TMDB enrichment through the FastAPI backend so the API key
+// never touches the client bundle.
 
-// API key is loaded from environment variable (set in .env file)
-// In Vite, env vars prefixed with VITE_ are exposed to client code
-const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY;
-const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
-const SHORT_FILM_RUNTIME_THRESHOLD = 40; // Runtime in minutes
-
-async function fetchTMDBId(title, year) {
-  const url = `${TMDB_BASE_URL}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(title)}&year=${year}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    console.error(`TMDB search failed for "${title}": ${res.status} ${res.statusText}`);
-    return null;
-  }
-  const data = await res.json();
-  if (data.results && data.results.length > 0) {
-    return data.results[0].id;
-  }
-  return null;
-}
-
-async function fetchMovieDetails(tmdbId) {
-  const url = `${TMDB_BASE_URL}/movie/${tmdbId}?api_key=${TMDB_API_KEY}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    console.error(`TMDB details fetch failed for ID "${tmdbId}": ${res.status} ${res.statusText}`);
-    return {};
-  }
-  return await res.json();
-}
-
-async function fetchMovieCredits(tmdbId) {
-  const url = `${TMDB_BASE_URL}/movie/${tmdbId}/credits?api_key=${TMDB_API_KEY}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    console.error(`TMDB credits fetch failed for ID "${tmdbId}": ${res.status} ${res.statusText}`);
-    return {};
-  }
-  return await res.json();
-}
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export async function enrichMoviesWithTMDB(movies, onProgress, filmKey, yearKey) {
   const enriched = [];
@@ -46,63 +10,43 @@ export async function enrichMoviesWithTMDB(movies, onProgress, filmKey, yearKey)
 
   for (let i = 0; i < movies.length; i += BATCH_SIZE) {
     const batch = movies.slice(i, i + BATCH_SIZE);
-    
+
     const promises = batch.map(async (movie) => {
       try {
         const title = movie[filmKey];
-        const year = movie[yearKey];
+        const year  = movie[yearKey];
+        if (!title) return null;
 
-        if (!title || !year) {
-            return null;
-        }
+        const params = new URLSearchParams({ title });
+        if (year) params.set('year', year);
 
-        const tmdbId = await fetchTMDBId(title, year);
-        if (!tmdbId) {
+        const res = await fetch(`${API_BASE}/enrich?${params}`);
+
+        // 404 = not found, 422 = short film — both are expected non-errors
+        if (res.status === 404 || res.status === 422) return null;
+        if (!res.ok) {
+          console.error(`Enrichment failed for "${title}": ${res.status}`);
           return null;
         }
-        
-        const [details, credits] = await Promise.all([
-          fetchMovieDetails(tmdbId),
-          fetchMovieCredits(tmdbId)
-        ]);
 
-        // ** THE FIX IS HERE **
-        // If the runtime is below the threshold, exclude it from the results.
-        if (details.runtime && details.runtime < SHORT_FILM_RUNTIME_THRESHOLD) {
-          console.log(`Excluding short film: ${title} (${details.runtime} mins)`);
-          return null;
-        }
-        
-        const director = credits.crew?.find(p => p.job === 'Director')?.name || 'Unknown';
-        const genres = details.genres?.map(g => g.name) || [];
-        
-        const cast = credits.cast
-          ?.filter(actor => 
-            actor.known_for_department === 'Acting' && 
-            !actor.character.toLowerCase().includes('(voice)')
-          )
-          .map(a => ({ name: a.name, profile_path: a.profile_path })) || [];
-
-        const countries = details.production_countries?.map(c => c.iso_3166_1) || [];
-
-        return { ...movie, director, genres, cast, countries };
+        const data = await res.json();
+        return { ...movie, ...data };
       } catch (err) {
-        console.error(`Failed to enrich movie: ${movie[filmKey]}. Reason:`, err);
-        return null; // Exclude movies that cause an error
+        console.error(`Failed to enrich "${movie[filmKey]}":`, err);
+        return null;
       }
     });
 
     const batchResults = await Promise.all(promises);
     enriched.push(...batchResults);
-    
+
     const progress = Math.round(((i + batch.length) / movies.length) * 100);
     onProgress(progress);
 
     if (i + BATCH_SIZE < movies.length) {
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 500));
     }
   }
 
-  // Filter out any null values (short films or errors) from the final array
   return enriched.filter(Boolean);
 }
