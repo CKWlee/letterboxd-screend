@@ -1,94 +1,88 @@
-# Letterboxd Screend
+# letterboxd screend
 
-> Turn your Letterboxd data export into a personal film analytics dashboard.
+upload your letterboxd data export and get a full breakdown of your watch history — genre trends, director frequency, sentiment on your reviews, rewatch behavior, and a bunch of other stuff that tells you more about yourself than you probably wanted to know.
 
-Upload your Letterboxd ZIP and get 20+ interactive visualizations — sentiment analysis on your reviews, viewing heatmaps, genre breakdowns, director frequency, rewatch behavior, and a written insights panel that surfaces patterns in your watch history.
-
-**[Live demo →](https://ckwlee.github.io/letterboxd-screend)**
+**[live demo →](https://ckwlee.github.io/letterboxd-screend)**
 
 ![demo](assets/demo.gif)
 
 ---
 
-## Architecture
+## what it does
+
+drop in your letterboxd ZIP and it generates 20+ tiles:
+
+- sentiment analysis on your written reviews
+- word cloud from your review language
+- calendar heatmap of when you watch
+- genre and decade breakdowns
+- director and actor frequency
+- rewatch rating drift (do you like things more or less the second time?)
+- binge session detection
+- how long you wait before logging a film
+- an insights panel that writes out actual observations about your habits
+
+no account needed, no data sent anywhere except TMDB for film metadata
+
+---
+
+## how it actually works
 
 ```
-React/Vite (GitHub Pages)
-        ↓
+your browser (React/Vite)
+      ↓  parses your ZIP locally
 FastAPI backend (Google Cloud Run)
-        ↓
-TMDB API — film metadata enrichment
+      ↓  enriches with film metadata
+TMDB API
 ```
 
-The frontend parses your Letterboxd ZIP export entirely client-side (no data leaves your browser except TMDB enrichment requests). The FastAPI backend handles TMDB API calls so the key never touches the client bundle.
+the frontend does all the heavy lifting client-side. the backend exists so the TMDB API key stays off the client bundle.
 
 ---
 
-## Features
+## stack
 
-**Analytics tiles**
-- Sentiment analysis on review text (positive/negative/neutral scoring)
-- D3.js word cloud from review language
-- Calendar heatmap of viewing activity
-- Genre and decade breakdowns
-- Director and actor frequency charts
-- Rewatch behavior and rating drift analysis
-- Viewing streaks and binge session detection
-- Logging lag — time between watching and logging
-- Prime time — what time of day you watch most
-
-**Insights panel**
-Written analytical observations generated from your data — things like:
-- "You give rewatched films 0.4★ lower on second viewing"
-- "Horror is your most-logged genre but your lowest-rated"
-- "You log 62% of films the same day you watch them"
-
----
-
-## Stack
-
-| Layer | Tech |
+| | |
 |---|---|
-| Frontend | React, Vite, D3.js, Recharts, sentiment.js |
-| Data parsing | PapaParse, JSZip |
-| Backend | FastAPI, Python 3.11 |
-| Metadata | TMDB API |
-| Frontend hosting | GitHub Pages |
-| Backend hosting | Google Cloud Run (us-central1) |
-| CI/CD | GitHub Actions |
+| frontend | React, Vite, D3.js, Recharts, sentiment.js |
+| parsing | PapaParse, JSZip |
+| backend | FastAPI, Python 3.11 |
+| metadata | TMDB API |
+| hosting | GitHub Pages (frontend), Google Cloud Run (backend) |
+| ci/cd | GitHub Actions |
 
 ---
 
-## Local development
+## run it locally
 
-**Frontend**
+**frontend**
 ```bash
 npm install
 npm run dev
 ```
 
-Create a `.env` file in the root:
+add a `.env` in the root:
 ```
 VITE_API_URL=http://localhost:8000
 ```
 
-**Backend**
+**backend**
 ```bash
 cd server
 pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
-Create a `server/.env` file:
+add a `server/.env`:
 ```
-TMDB_API_KEY=your_tmdb_api_key_here
+TMDB_API_KEY=your_key_here
 ```
 
 ---
 
-## Deploy your own
+## deploy your own
 
-**Backend** — deploy to Google Cloud Run:
+backend on Cloud Run:
 ```bash
 cd server
 gcloud run deploy letterboxd-screend-api \
@@ -98,10 +92,4 @@ gcloud run deploy letterboxd-screend-api \
   --set-env-vars TMDB_API_KEY=your_key_here
 ```
 
-**Frontend** — add `VITE_API_URL` as a GitHub Actions secret pointing to your Cloud Run URL. Push to `main` to trigger auto-deploy.
-
----
-
-## License
-
-MIT
+frontend auto-deploys via GitHub Actions on push to main. add `VITE_API_URL` as a repo secret pointing to your Cloud Run URL.
