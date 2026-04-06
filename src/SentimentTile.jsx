@@ -66,7 +66,7 @@ export default function SentimentTile({ diary, reviews }) {
   const radius = 60;
   const circ = 2 * Math.PI * radius;
   const offset = circ * (1 - percent / 100);
-  const color = sentiment >= 0 ? '#4caf50' : '#f44336';
+  const color = sentiment >= 0 ? '#e09f3e' : '#c97b6b';
 
   let descriptor;
   if (sentiment > 0.1) descriptor = 'Overall Positive';
@@ -81,7 +81,7 @@ export default function SentimentTile({ diary, reviews }) {
       <h2 style={{ margin: 0, alignSelf: 'flex-start' }}>Average Mood</h2>
 
       <svg width={140} height={140} style={{ marginTop: '8px' }}>
-        <circle cx={70} cy={70} r={radius} fill="none" stroke="#eee" strokeWidth={14} />
+        <circle cx={70} cy={70} r={radius} fill="none" stroke="#6b6156" strokeWidth={14} />
         <circle
           cx={70}
           cy={70}

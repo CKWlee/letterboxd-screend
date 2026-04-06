@@ -103,8 +103,9 @@ export default function Dashboard({ parsedData }) {
             <h2>Monthly Activity</h2>
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={monthlyActivity}>
-                <XAxis dataKey="month" tickFormatter={tickFmt} interval="preserveStartEnd" tick={{ fontSize: 12 }} height={45} angle={-45} textAnchor="end" />
-                <YAxis /><Tooltip />
+                <XAxis dataKey="month" tickFormatter={tickFmt} interval="preserveStartEnd" tick={{ fill: '#9a8e7f', fontSize: 12 }} axisLine={{ stroke: '#2a2318' }} tickLine={{ stroke: '#2a2318' }} height={45} angle={-45} textAnchor="end" />
+                <YAxis tick={{ fill: '#9a8e7f', fontSize: 12 }} axisLine={{ stroke: '#2a2318' }} tickLine={{ stroke: '#2a2318' }} />
+                <Tooltip contentStyle={{ background: '#1c1916', border: '1px solid rgba(224,159,62,0.15)', borderRadius: 4, color: '#e8e0d4' }} itemStyle={{ color: '#e8e0d4' }} labelStyle={{ color: '#9a8e7f' }} />
                 <Bar dataKey="count" fill={COLORS[0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -114,9 +115,9 @@ export default function Dashboard({ parsedData }) {
             <h2>Avg Monthly Rating</h2>
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={monthlyRatings}>
-                <XAxis dataKey="label" tickFormatter={tickFmt} interval="preserveStartEnd" tick={{ fontSize: 12 }} height={45} angle={-45} textAnchor="end" />
-                <YAxis domain={[0, 5]} tickFormatter={v => v.toFixed(2)} />
-                <Tooltip formatter={v => v.toFixed(2)} />
+                <XAxis dataKey="label" tickFormatter={tickFmt} interval="preserveStartEnd" tick={{ fill: '#9a8e7f', fontSize: 12 }} axisLine={{ stroke: '#2a2318' }} tickLine={{ stroke: '#2a2318' }} height={45} angle={-45} textAnchor="end" />
+                <YAxis domain={[0, 5]} tickFormatter={v => v.toFixed(2)} tick={{ fill: '#9a8e7f', fontSize: 12 }} axisLine={{ stroke: '#2a2318' }} tickLine={{ stroke: '#2a2318' }} />
+                <Tooltip formatter={v => v.toFixed(2)} contentStyle={{ background: '#1c1916', border: '1px solid rgba(224,159,62,0.15)', borderRadius: 4, color: '#e8e0d4' }} itemStyle={{ color: '#e8e0d4' }} labelStyle={{ color: '#9a8e7f' }} />
                 <Line type="monotone" dataKey="rating" stroke={COLORS[1]} dot={false} />
               </LineChart>
             </ResponsiveContainer>
@@ -129,8 +130,8 @@ export default function Dashboard({ parsedData }) {
                 <Pie data={ratingDistribution} dataKey="count" nameKey="rating" cx="50%" cy="50%" outerRadius={80} paddingAngle={0} label={false}>
                   {ratingDistribution.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} stroke="none" />)}
                 </Pie>
-                <Tooltip formatter={(v, n) => [v, `${n}★`]} />
-                <Legend layout="horizontal" align="center" verticalAlign="bottom" iconSize={12} formatter={v => `${v}★`} wrapperStyle={{ paddingTop: 10 }} />
+                <Tooltip formatter={(v, n) => [v, `${n}★`]} contentStyle={{ background: '#1c1916', border: '1px solid rgba(224,159,62,0.15)', borderRadius: 4, color: '#e8e0d4' }} itemStyle={{ color: '#e8e0d4' }} labelStyle={{ color: '#9a8e7f' }} />
+                <Legend layout="horizontal" align="center" verticalAlign="bottom" iconSize={12} formatter={v => `${v}★`} wrapperStyle={{ paddingTop: 10, color: '#9a8e7f' }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -180,10 +181,10 @@ export default function Dashboard({ parsedData }) {
             <h2>Films Watched by Year</h2>
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={yearsData}>
-                <XAxis dataKey="name" tickFormatter={y => parseInt(y, 10) % 10 === 0 ? y : ''} interval={0} tick={{ fontSize: 12 }} />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Bar dataKey="count" fill={COLORS[2]} />
+                <XAxis dataKey="name" tickFormatter={y => parseInt(y, 10) % 10 === 0 ? y : ''} interval={0} tick={{ fill: '#9a8e7f', fontSize: 12 }} axisLine={{ stroke: '#2a2318' }} tickLine={{ stroke: '#2a2318' }} />
+                <YAxis allowDecimals={false} tick={{ fill: '#9a8e7f', fontSize: 12 }} axisLine={{ stroke: '#2a2318' }} tickLine={{ stroke: '#2a2318' }} />
+                <Tooltip contentStyle={{ background: '#1c1916', border: '1px solid rgba(224,159,62,0.15)', borderRadius: 4, color: '#e8e0d4' }} itemStyle={{ color: '#e8e0d4' }} labelStyle={{ color: '#9a8e7f' }} />
+                <Bar dataKey="count" fill={COLORS[0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

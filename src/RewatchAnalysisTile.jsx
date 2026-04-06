@@ -40,7 +40,7 @@ export default function RewatchAnalysisTile({ mostRewatched, rewatchRatio }) {
               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
             ))}
           </Pie>
-          <Legend iconSize={10} wrapperStyle={{ fontSize: '0.9rem' }} />
+          <Legend iconSize={10} wrapperStyle={{ fontSize: '0.9rem', color: '#9a8e7f' }} />
         </PieChart>
       </ResponsiveContainer>
     </div>

@@ -3,6 +3,16 @@
   padding: 1rem;
 }
 
+/* Override default heatmap text color to warm palette */
+.react-calendar-heatmap text {
+  fill: #9a8e7f !important;
+}
+
+.heatmap-tile h3 {
+  color: #e8e0d4;
+  margin-bottom: 0.75rem;
+}
+
 .heatmap-legend {
   display: flex;
   justify-content: center;
@@ -24,7 +34,8 @@
   display: inline-block;
 }
 
-/* warm amber heatmap scale */
+/* warm amber heatmap scale — must override library defaults */
+.react-calendar-heatmap .color-empty { fill: #1c1916 !important; }
 rect.color-empty    { fill: #1c1916; }
 rect.color-scale-1  { fill: #3d2e1a; }
 rect.color-scale-2  { fill: #7a5a2e; }

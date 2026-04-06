@@ -21,12 +21,11 @@ const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     const tooltipStyle = {
-      background: '#1c1916', border: '1px solid rgba(224,159,62,0.15)',
-      border: '1px solid #ddd',
-      borderRadius: '8px',
+      background: '#1c1916',
+      border: '1px solid rgba(224,159,62,0.15)',
+      borderRadius: '4px',
       padding: '10px 15px',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-      fontFamily: "'Montserrat', sans-serif",
+      boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
     };
     const labelStyle = {
         fontWeight: 'bold',
@@ -60,8 +59,8 @@ export default function DecadeRatingsTile({ data }) {
       <h2>Avg. Rating by Decade</h2>
       <ResponsiveContainer width="100%" height={280}>
         <BarChart data={data} margin={{ top: 15, right: 20, left: -10, bottom: 5 }}>
-          <XAxis dataKey="decade" tick={{ fontFamily: 'Montserrat', fontSize: 12 }} />
-          <YAxis domain={[0, 5]} tick={{ fontFamily: 'Montserrat', fontSize: 12 }} />
+          <XAxis dataKey="decade" tick={{ fill: '#9a8e7f', fontSize: 12 }} axisLine={{ stroke: '#2a2318' }} tickLine={{ stroke: '#2a2318' }} />
+          <YAxis domain={[0, 5]} tick={{ fill: '#9a8e7f', fontSize: 12 }} axisLine={{ stroke: '#2a2318' }} tickLine={{ stroke: '#2a2318' }} />
           <Tooltip
             content={<CustomTooltip />}
             cursor={{ fill: 'rgba(224,159,62,0.08)' }}
