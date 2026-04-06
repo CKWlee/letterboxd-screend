@@ -33,7 +33,7 @@ function generateInsights({ diary, watched, ratings, reviews, enrichedData }) {
     const topDay = Object.entries(dayCounts).sort((a, b) => b[1] - a[1])[0];
     const pct    = Math.round((topDay[1] / diary.length) * 100);
     insights.push({
-      emoji: '📅',
+      
       text: `${pct}% of your films were watched on a ${topDay[0]} — you've got a ritual.`,
     });
   }
@@ -62,7 +62,7 @@ function generateInsights({ diary, watched, ratings, reviews, enrichedData }) {
         const dir = avg > 0 ? 'higher' : 'lower';
         const why = avg > 0 ? 'things grow on you' : 'distance makes you more critical';
         insights.push({
-          emoji: '🔁',
+          
           text: `Rewatches land ${Math.abs(avg).toFixed(1)}★ ${dir} than first viewings — ${why}.`,
         });
       }
@@ -98,12 +98,12 @@ function generateInsights({ diary, watched, ratings, reviews, enrichedData }) {
 
       if (mostWatched.genre !== highestRated.genre) {
         insights.push({
-          emoji: '🎬',
+          
           text: `You watch the most ${mostWatched.genre} (${mostWatched.count} films), but you rate ${highestRated.genre} highest (avg ${highestRated.avgRating.toFixed(2)}★).`,
         });
       } else {
         insights.push({
-          emoji: '🎬',
+          
           text: `${mostWatched.genre} is both your most-watched and highest-rated genre. You know exactly what you like.`,
         });
       }
@@ -131,7 +131,7 @@ function generateInsights({ diary, watched, ratings, reviews, enrichedData }) {
       if (Math.abs(delta) >= 0.15) {
         const dir = delta > 0 ? 'more generous' : 'more critical';
         insights.push({
-          emoji: '📈',
+          
           text: `Your average rating in ${years[years.length - 1]} (${lastAvg.toFixed(2)}★) vs ${years[0]} (${firstAvg.toFixed(2)}★) — you've gotten ${dir} over time.`,
         });
       }
@@ -160,12 +160,12 @@ function generateInsights({ diary, watched, ratings, reviews, enrichedData }) {
 
       if (pctSame >= 60) {
         insights.push({
-          emoji: '⚡',
+          
           text: `You log ${pctSame}% of films the same day you watch them. Real-time reviewer behavior.`,
         });
       } else if (avgLag > 3) {
         insights.push({
-          emoji: '🕰️',
+          
           text: `On average you wait ${avgLag.toFixed(1)} days before logging — you like to sit with it first.`,
         });
       }
@@ -181,12 +181,12 @@ function generateInsights({ diary, watched, ratings, reviews, enrichedData }) {
 
       if (yearsBack > 15) {
         insights.push({
-          emoji: '📽️',
+          
           text: `Your average film release year is ${Math.round(avgYear)} — you're drawn to older cinema, ${Math.round(yearsBack)} years back on average.`,
         });
       } else if (yearsBack < 5) {
         insights.push({
-          emoji: '🆕',
+          
           text: `Average release year of ${Math.round(avgYear)} — you're mostly watching current stuff.`,
         });
       }
@@ -210,7 +210,7 @@ export default function InsightsTile({ diary, watched, ratings, reviews, enriche
       <div className="insights-list">
         {insights.map((insight, i) => (
           <div key={i} className="insight-row">
-            <span className="insight-emoji">{insight.emoji}</span>
+            <span className="insight-emoji">{String(i + 1).padStart(2, '0')}</span>
             <span className="insight-text">{insight.text}</span>
           </div>
         ))}
