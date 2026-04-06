@@ -4,7 +4,7 @@ upload your letterboxd data export and get a full breakdown of your watch histor
 
 **[try it →](https://ckwlee.github.io/letterboxd-screend)**
 
-![demo](assets/demo.gif)
+![demo](src/assets/demo.gif)
 
 ---
 
