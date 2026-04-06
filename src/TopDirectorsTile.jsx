@@ -6,7 +6,7 @@ import {
 const CustomTooltip = ({ active, payload }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="custom-tooltip" style={{ background: 'white', padding: '5px 10px', border: '1px solid #ccc', borderRadius: '6px' }}>
+      <div className="custom-tooltip" style={{ background: '#1c1916', padding: '5px 10px', border: '1px solid rgba(224,159,62,0.15)', borderRadius: '4px' }}>
         <p className="label">{`${payload[0].payload.name} : ${payload[0].value} films`}</p>
       </div>
     );
@@ -20,7 +20,7 @@ export default function TopDirectorsTile({ data, status }) {
       case 'loading':
         return <p>Fetching director data...</p>;
       case 'error':
-        return <p style={{color: '#c0392b'}}>Could not fetch director data. Please check your API key or network.</p>;
+        return <p style={{color: '#c97b6b'}}>Could not fetch director data. Please check your API key or network.</p>;
       case 'success':
         return (
           <ResponsiveContainer width="100%" height={280}>
@@ -28,7 +28,7 @@ export default function TopDirectorsTile({ data, status }) {
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
               <XAxis type="number" allowDecimals={false} />
               <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 12 }} />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(206, 191, 255, 0.2)' }} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(224,159,62,0.08)' }} />
               <Legend />
               <Bar dataKey="count" name="Films Watched" fill="#8884d8" barSize={20} />
             </BarChart>

@@ -6,8 +6,8 @@ export default function GoogleGeoChart({ data, status, progress }) {
     const message = progress > 0 ? `Enriching data... ${progress}%` : 'Mapping your movie world...';
     return (
       <div className="chart-card">
-        <h2>Your Cinematic World Tour</h2>
-        <div style={{ height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666' }}>
+        <h2>your cinematic world tour</h2>
+        <div style={{ height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9a8e7f' }}>
           <p>{message}</p>
         </div>
       </div>
@@ -17,15 +17,14 @@ export default function GoogleGeoChart({ data, status, progress }) {
   if (status === 'error' || !data || !data.counts) {
     return (
       <div className="chart-card">
-        <h2>Your Cinematic World Tour</h2>
-        <div style={{ height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666' }}>
+        <h2>your cinematic world tour</h2>
+        <div style={{ height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9a8e7f' }}>
           <p>Could not retrieve country data.</p>
         </div>
       </div>
     );
   }
 
-  // Transform the data for Google GeoChart
   const chartData = [['Country', 'Movies Watched']];
   for (const countryCode in data.counts) {
     chartData.push([countryCode, data.counts[countryCode].count]);
@@ -33,14 +32,14 @@ export default function GoogleGeoChart({ data, status, progress }) {
 
   return (
     <div className="chart-card">
-      <h2>Your Cinematic World Tour</h2>
+      <h2>your cinematic world tour</h2>
       <p style={{
         margin: '0 0 15px 0',
         fontSize: '14px',
-        color: '#666',
+        color: '#9a8e7f',
         fontStyle: 'italic'
       }}>
-        Countries colored by number of films watched
+        countries colored by number of films watched
       </p>
       <Chart
         chartType="GeoChart"
@@ -48,10 +47,13 @@ export default function GoogleGeoChart({ data, status, progress }) {
         height="400px"
         data={chartData}
         options={{
-          colorAxis: { colors: ['#E6E6FA', '#5E35B1'] }, // Light to dark purple
-          backgroundColor: '#f8f9fa',
-          datalessRegionColor: '#e0e0e0',
-          defaultColor: '#f5f5f5',
+          colorAxis: { colors: ['#2a2318', '#e09f3e'] },
+          backgroundColor: '#141210',
+          datalessRegionColor: '#1c1916',
+          defaultColor: '#1c1916',
+          tooltip: {
+            textStyle: { color: '#e8e0d4', fontSize: 13 },
+          },
         }}
       />
     </div>

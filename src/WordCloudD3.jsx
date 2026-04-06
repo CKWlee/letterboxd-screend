@@ -79,7 +79,7 @@ export default function WordCloudD3({ data, width: propWidth, height: propHeight
     const vals = cleanData.map(d => d.value);
     return scaleLinear()
       .domain([Math.min(...vals), Math.max(...vals)])
-      .range(['#b0c4b1', '#00b020']);
+      .range(['#6b6156', '#e09f3e']);
   }, [cleanData]);
 
   useEffect(() => {
@@ -98,7 +98,7 @@ export default function WordCloudD3({ data, width: propWidth, height: propHeight
 
   if (!cleanData.length) {
     return (
-      <div ref={containerRef} style={{ textAlign: 'center', color: '#888', padding: '2rem' }}>
+      <div ref={containerRef} style={{ textAlign: 'center', color: '#9a8e7f', padding: '2rem' }}>
         no review text found — add some diary notes to generate a word cloud
       </div>
     );

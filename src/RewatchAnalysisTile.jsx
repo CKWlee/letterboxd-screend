@@ -1,6 +1,6 @@
 import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend } from 'recharts';
-const COLORS = ['#0088FE', '#00C49F'];
+const COLORS = ['#e09f3e', '#c97b6b'];
 
 export default function RewatchAnalysisTile({ mostRewatched, rewatchRatio }) {
   const data = [
@@ -14,11 +14,11 @@ export default function RewatchAnalysisTile({ mostRewatched, rewatchRatio }) {
 
       {/* Most Rewatched Film Section */}
       <div style={{ textAlign: 'center', margin: '15px 0' }}>
-        <p style={{ margin: 0, color: '#555', fontSize: '0.9rem' }}>You Couldn't Get Enough Of</p>
-        <p style={{ margin: '5px 0', fontWeight: 'bold', fontSize: '1.2rem', color: '#333' }}>
+        <p style={{ margin: 0, color: '#9a8e7f', fontSize: '0.9rem' }}>You Couldn't Get Enough Of</p>
+        <p style={{ margin: '5px 0', fontWeight: 'bold', fontSize: '1.2rem', color: '#e8e0d4' }}>
           {mostRewatched.name || 'N/A'}
         </p>
-        <p style={{ margin: 0, color: '#777', fontSize: '0.85rem' }}>
+        <p style={{ margin: 0, color: '#6b6156', fontSize: '0.85rem' }}>
           (Watched {mostRewatched.count} times)
         </p>
       </div>

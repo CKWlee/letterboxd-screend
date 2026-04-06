@@ -1,5 +1,3 @@
-/* HeatmapTile.css */
-
 .heatmap-tile {
   text-align: center;
   padding: 1rem;
@@ -26,32 +24,20 @@
   display: inline-block;
 }
 
-/* ─── SVG Heatmap Squares ───────────────────────────────────────── */
+/* warm amber heatmap scale */
+rect.color-empty    { fill: #1c1916; }
+rect.color-scale-1  { fill: #3d2e1a; }
+rect.color-scale-2  { fill: #7a5a2e; }
+rect.color-scale-3  { fill: #b8842e; }
+rect.color-scale-4  { fill: #e09f3e; }
 
-/* empty days */
-rect.color-empty    { fill: #eee; }
-
-/* 1 watch */
-rect.color-scale-1  { fill: #d6e685; }
-
-/* 2–3 watches */
-rect.color-scale-2  { fill: #8cc665; }
-
-/* 4–5 watches */
-rect.color-scale-3  { fill: #44a340; }
-
-/* 6+ watches */
-rect.color-scale-4  { fill: #1e6823; }
-
-/* ─── Legend Swatches ───────────────────────────────────────────── */
-
-.legend-color.color-empty    { background-color: #eee; }
-.legend-color.color-scale-1  { background-color: #d6e685; }
-.legend-color.color-scale-2  { background-color: #8cc665; }
-.legend-color.color-scale-3  { background-color: #44a340; }
-.legend-color.color-scale-4  { background-color: #1e6823; }
+.legend-color.color-empty    { background-color: #1c1916; border: 1px solid #2a2318; }
+.legend-color.color-scale-1  { background-color: #3d2e1a; }
+.legend-color.color-scale-2  { background-color: #7a5a2e; }
+.legend-color.color-scale-3  { background-color: #b8842e; }
+.legend-color.color-scale-4  { background-color: #e09f3e; }
 
 .legend-label {
   font-size: 0.8rem;
-  color: #555;
+  color: #9a8e7f;
 }

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;700&display=swap');
 
 :root {
   --bg: #141210;
@@ -10,7 +10,7 @@
   --text-muted: #9a8e7f;
   --text-faint: #6b6156;
   --mono: 'Roboto Mono', monospace;
-  --body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --body: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
   --radius: 6px;
 }
 
@@ -25,6 +25,27 @@ body {
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
+
+/* theater wall lights — subtle warm glow on both sides */
+.app-container::before,
+.app-container::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  width: 180px;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+.app-container::before {
+  left: 0;
+  background: radial-gradient(ellipse at left center, rgba(224,159,62,0.06) 0%, transparent 70%);
+}
+.app-container::after {
+  right: 0;
+  background: radial-gradient(ellipse at right center, rgba(224,159,62,0.06) 0%, transparent 70%);
+}
+.app-container > * { position: relative; z-index: 1; }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg); }

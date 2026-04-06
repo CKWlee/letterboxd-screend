@@ -21,7 +21,7 @@ const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     const tooltipStyle = {
-      background: 'rgba(255, 255, 255, 0.9)',
+      background: '#1c1916', border: '1px solid rgba(224,159,62,0.15)',
       border: '1px solid #ddd',
       borderRadius: '8px',
       padding: '10px 15px',
@@ -31,9 +31,9 @@ const CustomTooltip = ({ active, payload, label }) => {
     const labelStyle = {
         fontWeight: 'bold',
         marginBottom: '8px',
-        color: '#333',
+        color: '#e8e0d4',
     };
-    const pStyle = { margin: '4px 0', color: '#555' };
+    const pStyle = { margin: '4px 0', color: '#9a8e7f' };
 
     return (
       <div style={tooltipStyle}>
@@ -64,7 +64,7 @@ export default function DecadeRatingsTile({ data }) {
           <YAxis domain={[0, 5]} tick={{ fontFamily: 'Montserrat', fontSize: 12 }} />
           <Tooltip
             content={<CustomTooltip />}
-            cursor={{ fill: 'rgba(206, 191, 255, 0.2)' }}
+            cursor={{ fill: 'rgba(224,159,62,0.08)' }}
           />
           <Bar dataKey="averageRating" shape={<RoundedBar />}>
             {data.map((entry, index) => (

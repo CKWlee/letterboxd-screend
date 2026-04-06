@@ -57,7 +57,7 @@ export default function SentimentTile({ diary, reviews }) {
         style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px', gap: '24px' }}
       >
         <h2 style={{ margin: 0, alignSelf: 'flex-start' }}>Average Mood</h2>
-        <p style={{ color: '#666' }}>Analyzing…</p>
+        <p style={{ color: '#9a8e7f' }}>Analyzing…</p>
       </div>
     );
   }
@@ -98,12 +98,12 @@ export default function SentimentTile({ diary, reviews }) {
         </text>
       </svg>
 
-      <div style={{ fontSize: '1rem', color: '#333' }}>{descriptor}</div>
+      <div style={{ fontSize: '1rem', color: '#e8e0d4' }}>{descriptor}</div>
 
       <div
         style={{
           fontSize: '0.85rem',
-          color: '#555',
+          color: '#9a8e7f',
           textAlign: 'center',
           lineHeight: 1.6,
           marginBottom: '16px',
